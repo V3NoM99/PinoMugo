@@ -1,5 +1,7 @@
 /// @file client.c
 /// @brief Contiene l'implementazione del client.
+#include "err_exit.h"
+#include "defines.h"
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -10,13 +12,6 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <unistd.h>
-#include <string.h>
-
-#include "err_exit.h"
-#include "defines.h"
-
-
-int fifo1_fd = -1;
 
 char pathDirectory[250];
 int numOfFiles = 0;
@@ -31,7 +26,7 @@ size_t append2Path(char *directory) {
 
 int checkFileName(char *filename1, char *filename2) {
 	return (filename1 == NULL || filename2 == NULL) ? 0
-		: strncmp(filename1, filename2, 8) == 0;
+		: strncmp(filename1, filename2, 7) == 0;
 }
 
 // The signal handler that will be used when the signal SIGUSR1
@@ -60,7 +55,17 @@ void sigHandlerStart(int sig) {
 			printf("non la esiste");
 			exit(0);
 		}
-		printf("Ciao USER, ora inizio l�invio dei file contenuti ");
+		char *username = getenv("USER");
+		if (username == NULL)
+			username = "unknown";
+
+		char buffer[BUFFER_SZ];
+		if (getcwd(buffer, sizeof(buffer)) == NULL) {
+			printf("getcwd failed\n");
+			exit(1);
+		}
+
+		printf("Ciao %s, ora inizio l’invio dei file contenuti in %s \n", username, buffer);
 		struct dirent *dentry;
 
 		while ((dentry = readdir(dirp)) != NULL) {
@@ -111,20 +116,7 @@ int main(int argc, char * argv[]) {
 	if (signal(SIGINT, sigHandlerStart) == SIG_ERR)
 		ErrExit("change signal handlerStart failed");
 
-
-	fifo1_fd = open(FIFO1_PATH, O_WRONLY);
-
-	// Send number of files through FIFO1
-    char * n_string = int_to_string(numOfFiles);
-    msg_t n_msg = {.mtype = N_FILES, .sender_pid = getpid()};
-    strcpy(n_msg.msg_body, n_string);
-    free(n_string); 
-
-    if (write(fifo1_fd, &n_msg, sizeof(n_msg)) == -1){
-		ErrExit("Write FIFO1 failed");
-	}
-	
-	// infinite loop
+	// inifinite loop
 	while (1) {
 
 	}
