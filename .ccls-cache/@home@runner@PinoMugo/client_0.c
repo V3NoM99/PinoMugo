@@ -136,8 +136,8 @@ int main(int argc, char * argv[]) {
 	}
 	
 	// infinite loop
-	while (1) {
-
+	while (true) {
+    
 	}
 
 	return 0;

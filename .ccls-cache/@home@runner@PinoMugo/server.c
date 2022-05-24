@@ -49,8 +49,9 @@ int main(int argc, char * argv[]) {
     shm_ptr = (msg_t *) get_shared_memory(shmid, IPC_CREAT | S_IRUSR | S_IWUSR);
 
     //SemaphoreSet
-    semid = createSemaphores(SEM_KEY, 1);
-    semSetVal(semid,0,1);
+    semid = createSemaphores(SEM_KEY, 2);
+    semSetVal(semid,0,0);
+    semSetVal(semid,1,0);
     
     while(true){
 
@@ -62,6 +63,7 @@ int main(int argc, char * argv[]) {
         int n = 0;
         if ((n = atoi(n_files.msg_body))==0)
             ErrExit("Atoi failed!");
+        printf("number of files: %d \n", n);
 
         // write the OK message on shared memory
         msg_t received_msg = {.msg_body = "OK", .mtype = N_FILES, .sender_pid = getpid()};
@@ -70,7 +72,7 @@ int main(int argc, char * argv[]) {
         // SC
         shm_ptr[0] = received_msg;
         // END SC
-        semOp(semid, 0, 1);
+        semOp(semid, 1, 1);
     }
 
 
