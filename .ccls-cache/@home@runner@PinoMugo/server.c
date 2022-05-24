@@ -33,12 +33,7 @@ int semid = -1;
 msg_t * shm_ptr = NULL;
 
 int main(int argc, char * argv[]) {
-    
-    //generate the 2 FIFOs (FIFO1 and FIFO2) and the needed IPCs ( 1 MsqQueue, 1 SharedMemory and a Semaphore set)
-    //FIFO1
-    create_fifo(FIFO1_PATH, 'r');   //Server wants to read
-    //FIFO2
-    create_fifo(FIFO2_PATH, 'r');
+
 
     //MsgQueue
     msqid = msgget(MSQ_KEY, IPC_CREAT | S_IRUSR | S_IWUSR);
@@ -54,7 +49,12 @@ int main(int argc, char * argv[]) {
     semSetVal(semid,1,0);
     
     while(true){
-        
+          
+    //generate the 2 FIFOs (FIFO1 and FIFO2) and the needed IPCs ( 1 MsqQueue, 1 SharedMemory and a Semaphore set)
+    //FIFO1
+    create_fifo(FIFO1_PATH, 'r');   //Server wants to read
+
+        semOp(semid, 0, -1);
         //Server waits for number of files arrival
         msg_t n_files;
         if (read(fd_fifo1, &n_files, sizeof(msg_t)) == -1)

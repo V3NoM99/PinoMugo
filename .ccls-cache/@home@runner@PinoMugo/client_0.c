@@ -99,7 +99,7 @@ void sigHandlerStart(int sig) {
 		
 
     fifo1_fd = open(FIFO1_PATH, O_WRONLY);
-
+    printf("messaggio inviato");
 	// Send number of files through FIFO1
     char * n_string = int_to_string(numOfFiles);
     msg_t n_msg = {.mtype = N_FILES, .sender_pid = getpid()};
@@ -109,6 +109,8 @@ void sigHandlerStart(int sig) {
     if (write(fifo1_fd, &n_msg, sizeof(n_msg)) == -1){
 		ErrExit("Write FIFO1 failed");
 	}
+    
+    semOp(semid, 0, 1);
     semOp(semid, 1, -1);
     shmid = get_shared_memory(SHM_KEY, IPC_MAX_MSG * sizeof(msg_t));
     shm_ptr = (msg_t *) attach_shared_memory(shmid, IPC_CREAT | S_IRUSR | S_IWUSR);
