@@ -46,7 +46,7 @@ int main(int argc, char * argv[]) {
 
     //SharedMemory
     shmid = alloc_shared_memory(SHM_KEY, IPC_MAX_MSG * sizeof(msg_t));
-    shm_ptr = (msg_t *) get_shared_memory(shmid, IPC_CREAT | S_IRUSR | S_IWUSR);
+    shm_ptr = (msg_t *) attach_shared_memory(shmid, IPC_CREAT | S_IRUSR | S_IWUSR);
 
     //SemaphoreSet
     semid = createSemaphores(SEM_KEY, 2);
@@ -54,7 +54,7 @@ int main(int argc, char * argv[]) {
     semSetVal(semid,1,0);
     
     while(true){
-
+        
         //Server waits for number of files arrival
         msg_t n_files;
         if (read(fd_fifo1, &n_files, sizeof(msg_t)) == -1)
@@ -68,7 +68,7 @@ int main(int argc, char * argv[]) {
         // write the OK message on shared memory
         msg_t received_msg = {.msg_body = "OK", .mtype = N_FILES, .sender_pid = getpid()};
 
-        semOp(semid, 0, -1);
+        
         // SC
         shm_ptr[0] = received_msg;
         // END SC

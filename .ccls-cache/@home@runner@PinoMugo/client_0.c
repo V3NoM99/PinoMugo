@@ -11,12 +11,19 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <string.h>
+#include "semaphore.h"
+#include "shared_memory.h"
 
 #include "err_exit.h"
 #include "defines.h"
 
 
 int fifo1_fd = -1;
+int semid=-1;
+int shmid = -1;
+
+//Shared memory pointer
+msg_t * shm_ptr = NULL;
 
 char pathDirectory[250];
 int numOfFiles = 0;
@@ -48,6 +55,7 @@ void sigHandlerTerm(int sig) {
 void sigHandlerStart(int sig) {
 	if (sig == SIGINT) {
 		printf("Inizio Del Programma\n");
+    semid = createSemaphores(SEM_KEY, 2);
 		// set of signals (N.B. it is not initialized!)
 		sigset_t mySet;
 		// initialize mySet to contain all signals
@@ -88,7 +96,30 @@ void sigHandlerStart(int sig) {
 		}
 		printf("numero files: %d \n", numOfFiles);
 		closedir(dirp);
-		exit(0);
+		
+
+    fifo1_fd = open(FIFO1_PATH, O_WRONLY);
+
+	// Send number of files through FIFO1
+    char * n_string = int_to_string(numOfFiles);
+    msg_t n_msg = {.mtype = N_FILES, .sender_pid = getpid()};
+    strcpy(n_msg.msg_body, n_string);
+    free(n_string); 
+
+    if (write(fifo1_fd, &n_msg, sizeof(n_msg)) == -1){
+		ErrExit("Write FIFO1 failed");
+	}
+    semOp(semid, 1, -1);
+    shmid = get_shared_memory(SHM_KEY, IPC_MAX_MSG * sizeof(msg_t));
+    shm_ptr = (msg_t *) attach_shared_memory(shmid, IPC_CREAT | S_IRUSR | S_IWUSR);
+    if(strcmp(shm_ptr[0].msg_body,"OK"))
+      printf("Messaggio ricevuto\n");
+    else
+      printf("messaggio sbagliato");
+    
+      
+    
+    
 	}
 
 
@@ -122,18 +153,8 @@ int main(int argc, char * argv[]) {
 	if (signal(SIGINT, sigHandlerStart) == SIG_ERR)
 		ErrExit("change signal handlerStart failed");
 
-
-	fifo1_fd = open(FIFO1_PATH, O_WRONLY);
-
-	// Send number of files through FIFO1
-    char * n_string = int_to_string(numOfFiles);
-    msg_t n_msg = {.mtype = N_FILES, .sender_pid = getpid()};
-    strcpy(n_msg.msg_body, n_string);
-    free(n_string); 
-
-    if (write(fifo1_fd, &n_msg, sizeof(n_msg)) == -1){
-		ErrExit("Write FIFO1 failed");
-	}
+  
+	
 	
 	// infinite loop
 	while (true) {
