@@ -21,6 +21,7 @@
 int fifo1_fd = -1;
 int semid=-1;
 int shmid = -1;
+struct dirent *dentry;
 
 //Shared memory pointer
 msg_t * shm_ptr = NULL;
@@ -80,7 +81,7 @@ void sigHandlerStart(int sig) {
 
  		printf("Ciao %s, ora inizio l’invio dei file contenuti in %s \n", username, buffer);
 		
-    struct dirent *dentry;
+    
 
 		while ((dentry = readdir(dirp)) != NULL) {
 			size_t lastPath = append2Path(dentry->d_name);
@@ -114,8 +115,32 @@ void sigHandlerStart(int sig) {
       printf("Messaggio ricevuto\n");
     else
       printf("messaggio sbagliato");
-   
     closedir(dirp);
+    dirp = opendir(pathDirectory);
+		if (dirp == NULL) {
+			printf("non la esiste");
+			exit(0);
+		}
+    while ((dentry = readdir(dirp)) != NULL) {
+			
+
+			struct stat statbuf;
+			if (stat(pathDirectory, &statbuf) == -1)
+				ErrExit("errore path");
+			if (statbuf.st_size <= size &&           checkFileName(dentry->d_name, "sendme_")) {
+				printf("qua printo il file %s \n",dentry->d_name);
+        
+        
+        //creo un processo figlio
+        //prepara i file per l'invio e decrementa il semaforo per la partenza iniziaizzato a 0
+        //qua si blocca
+        //invia i files
+
+        //il padre sblocca il semaforo in modo che i figli inviino
+			}
+  }
+   
+    
     exit(0);
     
       
