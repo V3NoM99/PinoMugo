@@ -40,6 +40,8 @@
 
 #define SEM_KEY (key_t)333333
 
+#define SEM_KEY_START (key_t)444444
+
 // MTYPES
 #define N_FILES 1
 
