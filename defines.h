@@ -44,8 +44,7 @@
 
 // MTYPES
 #define N_FILES 1
-
-
+#define FINISHED 2
 
 //---------Messages structure---------
 typedef struct msg_t {

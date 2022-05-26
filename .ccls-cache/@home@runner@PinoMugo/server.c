@@ -32,6 +32,7 @@ int semid = -1;    // ID SEMAPHORES SET
 //Shared memory pointer
 msg_t * shm_ptr = NULL;
 
+//---------------------------------------------------
 // SERVER INTERNAL FUNCTIONS
 
 /**
@@ -85,6 +86,9 @@ void SignalHandlerTerm(int sig) {
 	exit(0);
 }
 
+//---------------------------------------------------
+// MAIN
+
 int main(int argc, char * argv[]) {
 
   	// setting of signal handler for closing IPCs
@@ -94,7 +98,20 @@ int main(int argc, char * argv[]) {
 
   	//MsgQueue
   	msqid = msgget(MSQ_KEY, IPC_CREAT | S_IRUSR | S_IWUSR);
-  	//TODO : c'è da limitare numero messagi coda a 50 look how to do it
+  	
+	//Setting MSQ Limit 
+	struct msqid_ds ds;
+    if (msgctl(msqid, IPC_STAT, &ds) == -1)
+        ErrExit("msgctl STAT");
+    ds.msg_qbytes = sizeof(msg_t) * IPC_MAX_MSG;
+	if (msgctl(msqid, IPC_SET, &ds) == -1) {
+        if(errno != EPERM) {
+            ErrExit("msgctl SET");
+        }
+        else {
+            printf("Not enough permissions to set new config\n");
+        }
+    }
 
   	//SharedMemory
   	shmid = alloc_shared_memory(SHM_KEY, IPC_MAX_MSG * sizeof(msg_t));
@@ -102,8 +119,8 @@ int main(int argc, char * argv[]) {
 
   	//SemaphoreSet
   	semid = createSemaphores(SEM_KEY, 2);
-  	semSetVal(semid,0,0);
-  	semSetVal(semid,1,0);
+	unsigned short semValues[10] = {0,0};
+    semSetAll(semid, semValues);
     
   	while(true){
           
@@ -130,6 +147,33 @@ int main(int argc, char * argv[]) {
       	shm_ptr[0] = received_msg;
       	// END SC
       	semOp(semid, 1, 1);
+
+		// Before starting ciclically waiting for messages from the 4 channels
+		// I have to make Fifo non-blocking
+		
+		
+		
+		
+		// Ciclically waiting for messages
+		int total_number_parts = n * 4; // total number of parts I have to receive
+		int received_parts = 0;
+		while(received_parts < total_number_parts){
+
+
+			
+		}
+		//HO RICEVUTO TUTTE LE PARTI, LE DEVO RIUNIRE
+
+		
+		
+		
+		// sending message to client: I've ended my work
+		msg_t end_msg = {.msg_body = "FINISHED", .mtype = FINISHED, .sender_pid=getpid()};
+        msgsnd(msqid, &end_msg, sizeof(struct msg_t)-sizeof(long), 0);
+
+		// RICORDATI DI RENDERE DI NUOVO BLOCCANTI LE FIFO SE NO POI NON FUNZIA PIU'
+		
+		// Wait again for a new number of files to receive
   	}
 
 
