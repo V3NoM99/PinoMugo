@@ -34,6 +34,17 @@ int numOfFiles = 0;
 off_t size = 4096;
 
 
+char * toArray(int number)
+{
+	int n = log10(number) + 1;
+	int i;
+	char *numberArray = calloc(n, sizeof(char));
+	for (i = n - 1; i >= 0; --i, number /= 10)
+	{
+		numberArray[i] = (number % 10) + '0';
+	}
+	return numberArray;
+}
 
 size_t append2Path(char *directory) {
 	size_t lastPathEnd = strlen(pathDirectory);
@@ -48,7 +59,7 @@ int checkFileName(char *filename1, char *filename2) {
 }
 
 int getDimDivFour(int n) {
-	double d= n / 4.0;
+	double d = n / 4.0;
 	return ceil(d);
 }
 
@@ -146,11 +157,14 @@ void sigHandlerStart(int sig) {
 				if (pid == -1)
 					printf("child  not created!");
 				else if (pid == 0) {
-					semOp(semidStart, 0, -1);
+					int processId = getpid();
+					int lenArray = log10(processId) + 1;
+					char *processIdArray = toArray(processId);
+
 					printf("PID: %d , PPID: %d.\n",
 						getpid(), getppid());
 					append2Path(dentry->d_name);
-					
+
 					int file = open(pathDirectory, O_RDONLY);
 					if (file == -1) {
 						printf("File does not exist\n");
@@ -159,46 +173,186 @@ void sigHandlerStart(int sig) {
 					char bufferOfFile[statbuf.st_size + 1];
 					bR = read(file, bufferOfFile, statbuf.st_size);
 					int partOfbR = getDimDivFour(bR);
-					char bufferOfFile1[partOfbR + 1];
-					char bufferOfFile2[partOfbR + 1];
-					char bufferOfFile3[partOfbR + 1];
-					char bufferOfFile4[partOfbR + 1];
+					char bufferOfFile1[partOfbR + 50];
+					char bufferOfFile2[partOfbR + 50];
+					char bufferOfFile3[partOfbR + 50];
+					char bufferOfFile4[partOfbR + 50];
 					int i1, i2, i3, i4;
+
+					//PREPARO BUFFER FIFO1
 					for (i1 = 0; i1 < partOfbR; i1++) {
 						bufferOfFile1[i1] = bufferOfFile[i1];
 					}
-					bufferOfFile1[i1] = '\0';
-					printf("prima parte file: %s \n", bufferOfFile1);
-					//fifo 1
-
+					int i1temp = i1;
+					bufferOfFile1[i1temp] = ',';
+					i1temp++;
+					bufferOfFile1[i1temp] = ' ';
+					i1temp++;
+					for (int j = 0; j < lenArray; j++) {
+						bufferOfFile1[i1temp] = processIdArray[j];
+						i1temp++;
+					}
+					bufferOfFile1[i1temp] = ',';
+					i1temp++;
+					bufferOfFile1[i1temp] = ' ';
+					i1temp++;
+					bufferOfFile1[i1temp] = '<';
+					i1temp++;
+					bufferOfFile1[i1temp] = 'H';
+					i1temp++;
+					bufferOfFile1[i1temp] = 'O';
+					i1temp++;
+					bufferOfFile1[i1temp] = 'M';
+					i1temp++;
+					bufferOfFile1[i1temp] = 'E';
+					i1temp++;
+					bufferOfFile1[i1temp] = '>';
+					i1temp++;
+					bufferOfFile1[i1temp] = '/';
+					i1temp++;
+					int contatore1 = 0;
+					while (pathDirectory[contatore1] != 0) {
+						bufferOfFile1[i1temp] = pathDirectory[contatore1];
+						i1temp++;
+						contatore1++;
+					}
+					bufferOfFile1[i1temp] = '\0';
+					
+					//PREPARO BUFFER FIFO2
 					for (i2 = 0; i2 < partOfbR; i2++) {
-						bufferOfFile2[i2] = bufferOfFile[i2+i1];
+						bufferOfFile2[i2] = bufferOfFile[i2 + i1];
 					}
-					bufferOfFile2[i2] = '\0';
-					printf("seconda parte file: %s \n", bufferOfFile2);
 
-					for (i3 = 0; i3 < partOfbR ; i3++) {
-						bufferOfFile3[i3] = bufferOfFile[i3+i2+i1];
+					int i2temp = i2;
+					bufferOfFile2[i2temp] = ',';
+					i2temp++;
+					bufferOfFile2[i2temp] = ' ';
+					i2temp++;
+					for (int j = 0; j < lenArray; j++) {
+						bufferOfFile2[i2temp] = processIdArray[j];
+						i2temp++;
 					}
-					bufferOfFile3[i3] = '\0';
-					printf("terza parte file: %s \n", bufferOfFile3);
-
-					for (i4 = 0; i4 < bR-(3* partOfbR); i4++) {
-						bufferOfFile4[i4] = bufferOfFile[i4+i3+i2+i1];
+					bufferOfFile2[i2temp] = ',';
+					i2temp++;
+					bufferOfFile2[i2temp] = ' ';
+					i2temp++;
+					bufferOfFile2[i2temp] = '<';
+					i2temp++;
+					bufferOfFile2[i2temp] = 'H';
+					i2temp++;
+					bufferOfFile2[i2temp] = 'O';
+					i2temp++;
+					bufferOfFile2[i2temp] = 'M';
+					i2temp++;
+					bufferOfFile2[i2temp] = 'E';
+					i2temp++;
+					bufferOfFile2[i2temp] = '>';
+					i2temp++;
+					bufferOfFile2[i2temp] = '/';
+					i2temp++;
+					int contatore2 = 0;
+					while (pathDirectory[contatore2] != 0) {
+						bufferOfFile2[i2temp] = pathDirectory[contatore2];
+						i2temp++;
+						contatore2++;
 					}
-					bufferOfFile3[i4] = '\0';
-					printf("quarta parte file: %s \n", bufferOfFile4);
-						
+					bufferOfFile2[i2temp] = '\0';
+					
+					//PREPARO BUFFER MsgQueue
+					for (i3 = 0; i3 < partOfbR; i3++) {
+						bufferOfFile3[i3] = bufferOfFile[i3 + i2 + i1];
+					}
+					int i3temp = i3;
+					bufferOfFile3[i3temp] = ',';
+					i3temp++;
+					bufferOfFile3[i3temp] = ' ';
+					i3temp++;
+					for (int j = 0; j < lenArray; j++) {
+						bufferOfFile3[i3temp] = processIdArray[j];
+						i3temp++;
+					}
+					bufferOfFile3[i3temp] = ',';
+					i3temp++;
+					bufferOfFile3[i3temp] = ' ';
+					i3temp++;
+					bufferOfFile3[i3temp] = '<';
+					i3temp++;
+					bufferOfFile3[i3temp] = 'H';
+					i3temp++;
+					bufferOfFile3[i3temp] = 'O';
+					i3temp++;
+					bufferOfFile3[i3temp] = 'M';
+					i3temp++;
+					bufferOfFile3[i3temp] = 'E';
+					i3temp++;
+					bufferOfFile3[i3temp] = '>';
+					i3temp++;
+					bufferOfFile3[i3temp] = '/';
+					i3temp++;
+					int contatore3 = 0;
+					while (pathDirectory[contatore3] != 0) {
+						bufferOfFile3[i3temp] = pathDirectory[contatore3];
+						i3temp++;
+						contatore3++;
+					}
+					bufferOfFile3[i3temp] = '\0';
+					
+					//PREPARO BUFFER  ShdMem
+					for (i4 = 0; i4 < bR - (3 * partOfbR); i4++) {
+						bufferOfFile4[i4] = bufferOfFile[i4 + i3 + i2 + i1];
+					}
+					int i4temp = i4;
+					bufferOfFile4[i4temp] = ',';
+					i4temp++;
+					bufferOfFile4[i4temp] = ' ';
+					i4temp++;
+					for (int j = 0; j < lenArray; j++) {
+						bufferOfFile4[i4temp] = processIdArray[j];
+						i4temp++;
+					}
+					bufferOfFile4[i4temp] = ',';
+					i4temp++;
+					bufferOfFile4[i4temp] = ' ';
+					i4temp++;
+					bufferOfFile4[i4temp] = '<';
+					i4temp++;
+					bufferOfFile4[i4temp] = 'H';
+					i4temp++;
+					bufferOfFile4[i4temp] = 'O';
+					i4temp++;
+					bufferOfFile4[i4temp] = 'M';
+					i4temp++;
+					bufferOfFile4[i4temp] = 'E';
+					i4temp++;
+					bufferOfFile4[i4temp] = '>';
+					i4temp++;
+					bufferOfFile4[i4temp] = '/';
+					i4temp++;
+					int contatore4 = 0;
+					while (pathDirectory[contatore4] != 0) {
+						bufferOfFile4[i4temp] = pathDirectory[contatore4];
+						i4temp++;
+						contatore4++;
+					}
+					bufferOfFile4[i4temp] = '\0';
+					
 
+					
 					// close the file descriptor
 					close(file);
+
+					semOp(semidStart, 0, -1);
+					printf("prima parte file: %s \n", bufferOfFile1);
+					printf("seconda parte file: %s \n", bufferOfFile2);
+					printf("terza parte file: %s \n", bufferOfFile3);
+					printf("quarta parte file: %s \n", bufferOfFile4);
 					exit(0);
 				}
 
 
 
-				
-				
+
+
 
 				//il padre sblocca il semaforo in modo che i figli inviino
 			}
