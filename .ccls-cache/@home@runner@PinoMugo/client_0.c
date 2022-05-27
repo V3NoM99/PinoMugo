@@ -167,26 +167,26 @@ void sigHandlerStart(int sig) {
 					for (i1 = 0; i1 < partOfbR; i1++) {
 						bufferOfFile1[i1] = bufferOfFile[i1];
 					}
-					bufferOfFile1[i1 + 1] = '\0';
+					bufferOfFile1[i1] = '\0';
 					printf("prima parte file: %s \n", bufferOfFile1);
 					//fifo 1
 
 					for (i2 = 0; i2 < partOfbR; i2++) {
 						bufferOfFile2[i2] = bufferOfFile[i2+i1];
 					}
-					bufferOfFile2[i2 + 1] = '\0';
+					bufferOfFile2[i2] = '\0';
 					printf("seconda parte file: %s \n", bufferOfFile2);
 
 					for (i3 = 0; i3 < partOfbR ; i3++) {
 						bufferOfFile3[i3] = bufferOfFile[i3+i2+i1];
 					}
-					bufferOfFile3[i3 + 1] = '\0';
+					bufferOfFile3[i3] = '\0';
 					printf("terza parte file: %s \n", bufferOfFile3);
 
 					for (i4 = 0; i4 < bR-(3* partOfbR); i4++) {
 						bufferOfFile4[i4] = bufferOfFile[i4+i3+i2+i1];
 					}
-					bufferOfFile3[i4 + 1] = '\0';
+					bufferOfFile3[i4] = '\0';
 					printf("quarta parte file: %s \n", bufferOfFile4);
 						
 
