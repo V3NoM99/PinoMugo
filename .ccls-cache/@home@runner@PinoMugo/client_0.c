@@ -130,9 +130,9 @@ void sigHandlerStart(int sig) {
 		if (write(fifo1_fd, &n_msg, sizeof(n_msg)) == -1) {
 			ErrExit("Write FIFO1 failed");
 		}
-		semOp(semid, 0, 1);
-		semOp(semid, 1, -1);
-		shmid = alloc_shared_memory(SHM_KEY, IPC_MAX_MSG * sizeof(msg_t));
+		semOp(semid, FIFO1SEM, 1);//sblocca fifo 1
+		semOp(semid, SHAREDMEMSEM, -1);//blocca ricezione shM
+		shmid = alloc_shared_memory(SHM_KEY, IPC_MAX_MSG * 1024);
 		shm_ptr = (msg_t *)attach_shared_memory(shmid, IPC_CREAT | S_IRUSR | S_IWUSR);
 		if (strcmp(shm_ptr[0].msg_body, "OK") == 0)
 			printf("Messaggio ricevuto\n");
@@ -144,8 +144,9 @@ void sigHandlerStart(int sig) {
 			printf("non la esiste");
 			exit(0);
 		}
+		int countShm = 0;
 		while ((dentry = readdir(dirp)) != NULL) {
-
+			countShm++;
 
 			struct stat statbuf;
 			if (stat(pathDirectory, &statbuf) == -1)
@@ -176,7 +177,7 @@ void sigHandlerStart(int sig) {
 					char bufferOfFile1[partOfbR + 50];
 					char bufferOfFile2[partOfbR + 50];
 					char bufferOfFile3[partOfbR + 50];
-					char bufferOfFile4[partOfbR + 50];
+					char bufferOfFile4[partOfbR];
 					int i1, i2, i3, i4;
 
 					//PREPARO BUFFER FIFO1
@@ -217,7 +218,7 @@ void sigHandlerStart(int sig) {
 						contatore1++;
 					}
 					bufferOfFile1[i1temp] = '\0';
-					
+
 					//PREPARO BUFFER FIFO2
 					for (i2 = 0; i2 < partOfbR; i2++) {
 						bufferOfFile2[i2] = bufferOfFile[i2 + i1];
@@ -257,7 +258,7 @@ void sigHandlerStart(int sig) {
 						contatore2++;
 					}
 					bufferOfFile2[i2temp] = '\0';
-					
+
 					//PREPARO BUFFER MsgQueue
 					for (i3 = 0; i3 < partOfbR; i3++) {
 						bufferOfFile3[i3] = bufferOfFile[i3 + i2 + i1];
@@ -296,52 +297,22 @@ void sigHandlerStart(int sig) {
 						contatore3++;
 					}
 					bufferOfFile3[i3temp] = '\0';
-					
+
 					//PREPARO BUFFER  ShdMem
 					for (i4 = 0; i4 < bR - (3 * partOfbR); i4++) {
 						bufferOfFile4[i4] = bufferOfFile[i4 + i3 + i2 + i1];
 					}
-					int i4temp = i4;
-					bufferOfFile4[i4temp] = ',';
-					i4temp++;
-					bufferOfFile4[i4temp] = ' ';
-					i4temp++;
-					for (int j = 0; j < lenArray; j++) {
-						bufferOfFile4[i4temp] = processIdArray[j];
-						i4temp++;
-					}
-					bufferOfFile4[i4temp] = ',';
-					i4temp++;
-					bufferOfFile4[i4temp] = ' ';
-					i4temp++;
-					bufferOfFile4[i4temp] = '<';
-					i4temp++;
-					bufferOfFile4[i4temp] = 'H';
-					i4temp++;
-					bufferOfFile4[i4temp] = 'O';
-					i4temp++;
-					bufferOfFile4[i4temp] = 'M';
-					i4temp++;
-					bufferOfFile4[i4temp] = 'E';
-					i4temp++;
-					bufferOfFile4[i4temp] = '>';
-					i4temp++;
-					bufferOfFile4[i4temp] = '/';
-					i4temp++;
-					int contatore4 = 0;
-					while (pathDirectory[contatore4] != 0) {
-						bufferOfFile4[i4temp] = pathDirectory[contatore4];
-						i4temp++;
-						contatore4++;
-					}
-					bufferOfFile4[i4temp] = '\0';
-					
 
-					
+					bufferOfFile4[i4] = '\0';
+					msg_t shdmem_msg = { .mtype = 1,.sender_pid = processId };
+					strcpy(shdmem_msg.msg_body, bufferOfFile4);
+					strcpy(shdmem_msg.file_path, pathDirectory);
+					shm_ptr[0] = shdmem_msg;
+					semOp(semid, SHAREDMEMSEM, 1);
 					// close the file descriptor
 					close(file);
 
-					semOp(semidStart, 0, -1);
+
 					printf("prima parte file: %s \n", bufferOfFile1);
 					printf("seconda parte file: %s \n", bufferOfFile2);
 					printf("terza parte file: %s \n", bufferOfFile3);
@@ -408,6 +379,7 @@ int main(int argc, char * argv[]) {
 
 
 	// infinite loop
+
 	while (true) {
 
 	}

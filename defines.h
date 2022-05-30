@@ -42,6 +42,9 @@
 
 #define SEM_KEY_START (key_t)444444
 
+#define FIFO1SEM      0
+#define SHAREDMEMSEM   1
+
 // MTYPES
 #define N_FILES 1
 #define FINISHED 2
