@@ -52,3 +52,17 @@ int create_fifo(char * path, char mode) {
 
     return fifo1_fd;
 }
+
+int blockFifo(int fd, int blockingFlag) {
+    // Save the current flags
+    int flags = fcntl(fd, F_GETFL, 0);
+    if (flags == -1)
+        return 0;
+
+    if (blockingFlag)
+        flags &= ~O_NONBLOCK;
+    else
+        flags |= O_NONBLOCK;
+
+    return fcntl(fd, F_SETFL, flags) != -1;
+}

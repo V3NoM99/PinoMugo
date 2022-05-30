@@ -42,12 +42,21 @@
 
 #define SEM_KEY_START (key_t)444444
 
-#define FIFO1SEM      0
-#define SHAREDMEMSEM   1
+#define FIFO1SEM		0
+#define FIFO2SEM		1
+#define MSQSEM 			2
+#define SHAREDMEMSEM   	3
+
 
 // MTYPES
-#define N_FILES 1
-#define FINISHED 2
+#define FIFO1_PART 1
+#define FIFO2_PART 2
+#define MSQ_PART 3
+#define SHM_PART 4
+#define N_FILES 5
+#define FINISHED 6
+
+#define INIT -1
 
 //---------Messages structure---------
 typedef struct msg_t {

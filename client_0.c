@@ -13,13 +13,15 @@
 #include <string.h>
 #include "semaphore.h"
 #include "shared_memory.h"
+#include "fifo.h"
 #include <math.h>
 
 #include "err_exit.h"
 #include "defines.h"
 
 
-int fifo1_fd = -1;
+int fd_fifo1 = -1;
+int fd_fifo2 = -1;
 int semid = -1;
 int semidStart = -1;
 int shmid = -1;
@@ -120,14 +122,16 @@ void sigHandlerStart(int sig) {
 		semidStart = createSemaphores(SEM_KEY_START, 1);
 		semSetVal(semidStart, 0, 0);
 
-		fifo1_fd = open(FIFO1_PATH, O_WRONLY);
+		fd_fifo1 = open(FIFO1_PATH, O_WRONLY);
+		fd_fifo2 = open(FIFO2_PATH, O_WRONLY);
+		
 		// Send number of files through FIFO1
 		char * n_string = int_to_string(numOfFiles);
 		msg_t n_msg = { .mtype = N_FILES,.sender_pid = getpid() };
 		strcpy(n_msg.msg_body, n_string);
 		free(n_string);
 
-		if (write(fifo1_fd, &n_msg, sizeof(n_msg)) == -1) {
+		if (write(fd_fifo1, &n_msg, sizeof(n_msg)) == -1) {
 			ErrExit("Write FIFO1 failed");
 		}
 		semOp(semid, FIFO1SEM, 1);//sblocca fifo 1
@@ -138,6 +142,7 @@ void sigHandlerStart(int sig) {
 			printf("Messaggio ricevuto\n");
 		else
 			printf("messaggio sbagliato");
+
 		closedir(dirp);
 		dirp = opendir(pathDirectory);
 		if (dirp == NULL) {
@@ -332,7 +337,7 @@ void sigHandlerStart(int sig) {
 		if (pid != 0) {
 			printf("PArent PID: %d , NOnno PID: %d.\n",
 				getpid(), getppid());
-			semOp(semidStart, 0, numOfFiles);
+			semOp(semidStart, FIFO1SEM, numOfFiles);
 
 		}
 

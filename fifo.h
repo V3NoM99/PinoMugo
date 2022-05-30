@@ -20,3 +20,6 @@ void make_fifo(char * path);
  * @return int Descrittore della FIFO
  */
 int create_fifo(char * path, char mode);
+
+
+int blockFifo(int fd, int blockingFlag);
