@@ -22,6 +22,7 @@
 
 int fd_fifo1 = -1;
 int fd_fifo2 = -1;
+int msqid = -1;
 int semid = -1;
 int semidStart = -1;
 int shmid = -1;
@@ -124,7 +125,7 @@ void sigHandlerStart(int sig) {
 
 		fd_fifo1 = open(FIFO1_PATH, O_WRONLY);
 		fd_fifo2 = open(FIFO2_PATH, O_WRONLY);
-		
+		msqid = msgget(MSQ_KEY, IPC_CREAT | S_IRUSR | S_IWUSR);
 		// Send number of files through FIFO1
 		char * n_string = int_to_string(numOfFiles);
 		msg_t n_msg = { .mtype = N_FILES,.sender_pid = getpid() };
@@ -149,10 +150,7 @@ void sigHandlerStart(int sig) {
 			printf("non la esiste");
 			exit(0);
 		}
-		int countShm = 0;
 		while ((dentry = readdir(dirp)) != NULL) {
-			countShm++;
-
 			struct stat statbuf;
 			if (stat(pathDirectory, &statbuf) == -1)
 				ErrExit("errore path");
@@ -164,9 +162,6 @@ void sigHandlerStart(int sig) {
 					printf("child  not created!");
 				else if (pid == 0) {
 					int processId = getpid();
-					int lenArray = log10(processId) + 1;
-					char *processIdArray = toArray(processId);
-
 					printf("PID: %d , PPID: %d.\n",
 						getpid(), getppid());
 					append2Path(dentry->d_name);
@@ -179,9 +174,9 @@ void sigHandlerStart(int sig) {
 					char bufferOfFile[statbuf.st_size + 1];
 					bR = read(file, bufferOfFile, statbuf.st_size);
 					int partOfbR = getDimDivFour(bR);
-					char bufferOfFile1[partOfbR + 50];
-					char bufferOfFile2[partOfbR + 50];
-					char bufferOfFile3[partOfbR + 50];
+					char bufferOfFile1[partOfbR];
+					char bufferOfFile2[partOfbR];
+					char bufferOfFile3[partOfbR];
 					char bufferOfFile4[partOfbR];
 					int i1, i2, i3, i4;
 
@@ -189,133 +184,55 @@ void sigHandlerStart(int sig) {
 					for (i1 = 0; i1 < partOfbR; i1++) {
 						bufferOfFile1[i1] = bufferOfFile[i1];
 					}
-					int i1temp = i1;
-					bufferOfFile1[i1temp] = ',';
-					i1temp++;
-					bufferOfFile1[i1temp] = ' ';
-					i1temp++;
-					for (int j = 0; j < lenArray; j++) {
-						bufferOfFile1[i1temp] = processIdArray[j];
-						i1temp++;
-					}
-					bufferOfFile1[i1temp] = ',';
-					i1temp++;
-					bufferOfFile1[i1temp] = ' ';
-					i1temp++;
-					bufferOfFile1[i1temp] = '<';
-					i1temp++;
-					bufferOfFile1[i1temp] = 'H';
-					i1temp++;
-					bufferOfFile1[i1temp] = 'O';
-					i1temp++;
-					bufferOfFile1[i1temp] = 'M';
-					i1temp++;
-					bufferOfFile1[i1temp] = 'E';
-					i1temp++;
-					bufferOfFile1[i1temp] = '>';
-					i1temp++;
-					bufferOfFile1[i1temp] = '/';
-					i1temp++;
-					int contatore1 = 0;
-					while (pathDirectory[contatore1] != 0) {
-						bufferOfFile1[i1temp] = pathDirectory[contatore1];
-						i1temp++;
-						contatore1++;
-					}
-					bufferOfFile1[i1temp] = '\0';
-
+					
+					bufferOfFile1[i1] = '\0';
+					msg_t fifo1_msg = { .mtype = 2,.sender_pid = processId };
+					strcpy(fifo1_msg.msg_body, bufferOfFile1);
+					strcpy(fifo1_msg.file_path, pathDirectory);
 					//PREPARO BUFFER FIFO2
 					for (i2 = 0; i2 < partOfbR; i2++) {
 						bufferOfFile2[i2] = bufferOfFile[i2 + i1];
 					}
-
-					int i2temp = i2;
-					bufferOfFile2[i2temp] = ',';
-					i2temp++;
-					bufferOfFile2[i2temp] = ' ';
-					i2temp++;
-					for (int j = 0; j < lenArray; j++) {
-						bufferOfFile2[i2temp] = processIdArray[j];
-						i2temp++;
-					}
-					bufferOfFile2[i2temp] = ',';
-					i2temp++;
-					bufferOfFile2[i2temp] = ' ';
-					i2temp++;
-					bufferOfFile2[i2temp] = '<';
-					i2temp++;
-					bufferOfFile2[i2temp] = 'H';
-					i2temp++;
-					bufferOfFile2[i2temp] = 'O';
-					i2temp++;
-					bufferOfFile2[i2temp] = 'M';
-					i2temp++;
-					bufferOfFile2[i2temp] = 'E';
-					i2temp++;
-					bufferOfFile2[i2temp] = '>';
-					i2temp++;
-					bufferOfFile2[i2temp] = '/';
-					i2temp++;
-					int contatore2 = 0;
-					while (pathDirectory[contatore2] != 0) {
-						bufferOfFile2[i2temp] = pathDirectory[contatore2];
-						i2temp++;
-						contatore2++;
-					}
-					bufferOfFile2[i2temp] = '\0';
-
+					bufferOfFile2[i2] = '\0';
+					msg_t fifo2_msg = { .mtype = 2,.sender_pid = processId };
+					strcpy(fifo2_msg.msg_body, bufferOfFile2);
+					strcpy(fifo2_msg.file_path, pathDirectory);
 					//PREPARO BUFFER MsgQueue
 					for (i3 = 0; i3 < partOfbR; i3++) {
 						bufferOfFile3[i3] = bufferOfFile[i3 + i2 + i1];
-					}
-					int i3temp = i3;
-					bufferOfFile3[i3temp] = ',';
-					i3temp++;
-					bufferOfFile3[i3temp] = ' ';
-					i3temp++;
-					for (int j = 0; j < lenArray; j++) {
-						bufferOfFile3[i3temp] = processIdArray[j];
-						i3temp++;
-					}
-					bufferOfFile3[i3temp] = ',';
-					i3temp++;
-					bufferOfFile3[i3temp] = ' ';
-					i3temp++;
-					bufferOfFile3[i3temp] = '<';
-					i3temp++;
-					bufferOfFile3[i3temp] = 'H';
-					i3temp++;
-					bufferOfFile3[i3temp] = 'O';
-					i3temp++;
-					bufferOfFile3[i3temp] = 'M';
-					i3temp++;
-					bufferOfFile3[i3temp] = 'E';
-					i3temp++;
-					bufferOfFile3[i3temp] = '>';
-					i3temp++;
-					bufferOfFile3[i3temp] = '/';
-					i3temp++;
-					int contatore3 = 0;
-					while (pathDirectory[contatore3] != 0) {
-						bufferOfFile3[i3temp] = pathDirectory[contatore3];
-						i3temp++;
-						contatore3++;
-					}
-					bufferOfFile3[i3temp] = '\0';
-
+					}		
+					bufferOfFile3[i3] = '\0';
+					msg_t msgQueue_msg = { .mtype = 3,.sender_pid = processId };
+					strcpy(msgQueue_msg.msg_body, bufferOfFile3);
+					strcpy(msgQueue_msg.file_path, pathDirectory);
 					//PREPARO BUFFER  ShdMem
 					for (i4 = 0; i4 < bR - (3 * partOfbR); i4++) {
 						bufferOfFile4[i4] = bufferOfFile[i4 + i3 + i2 + i1];
 					}
-
 					bufferOfFile4[i4] = '\0';
-					msg_t shdmem_msg = { .mtype = 1,.sender_pid = processId };
+					msg_t shdmem_msg = { .mtype = 4,.sender_pid = processId };
 					strcpy(shdmem_msg.msg_body, bufferOfFile4);
 					strcpy(shdmem_msg.file_path, pathDirectory);
-					shm_ptr[0] = shdmem_msg;
-					semOp(semid, SHAREDMEMSEM, 1);
 					// close the file descriptor
 					close(file);
+
+
+					//invio parte 4 su shdMem
+					shm_ptr[0] = shdmem_msg;
+					semOp(semid, SHAREDMEMSEM, 1);
+
+					//invio parte1 su fifo
+					semOp(semid, 7, -1);
+					if (write(fd_fifo1, &fifo1_msg, sizeof(fifo1_msg)) == -1) {
+						ErrExit("Write FIFO1 failed");
+					}
+					//semOp(semid, FIFO1SEM, 1);//sblocca fifo 1
+
+					//invio parte 3 su messageQuee
+					semOp(semid, 9, -1);
+					if (msgsnd(msqid, &msgQueue_msg, sizeof(struct msg_t) - sizeof(long), IPC_NOWAIT) == -1) {
+						ErrExit("Write ShdMem failed");
+					}
 
 
 					printf("prima parte file: %s \n", bufferOfFile1);
