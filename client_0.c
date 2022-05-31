@@ -85,13 +85,13 @@ void InizializeIpc()
 	if (semid == -1) 
 		ErrExit("Creation Sempaphore failed");
 	if(fd_fifo1==-1)
-		fd_fifo1 = open(FIFO1_PATH, O_WRONLY);
+		fd_fifo1 = open(FIFO1_PATH, O_WRONLY );
 	if (fd_fifo1 == -1)
 		ErrExit("Creation FIFO1 failed");
-	/*if (fd_fifo2 == -1)
+	if (fd_fifo2 == -1)
 		fd_fifo2 = open(FIFO2_PATH, O_WRONLY);
 	if (fd_fifo2 == -1)
-		ErrExit("Creation FIFO2 failed");*/
+		ErrExit("Creation FIFO2 failed");
 	if(msqid ==-1)
 		msqid = msgget(MSQ_KEY, IPC_CREAT | S_IRUSR | S_IWUSR);
 	if (msqid == -1)

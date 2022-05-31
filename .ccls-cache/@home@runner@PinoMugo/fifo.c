@@ -34,7 +34,7 @@ int create_fifo(char * path, char mode) {
     printf("FIFO created/obtained\n");
 
     if (mode == 'r') {
-        fifo1_fd = open(path, O_RDONLY);
+        fifo1_fd = open(path, O_RDONLY );
         if (fifo1_fd == -1) {
             ErrExit("[fifo.c:create_fifo] open FIFO1 failed (read mode)");
         }

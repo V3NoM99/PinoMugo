@@ -37,6 +37,15 @@ msg_t **matrixFile = NULL;
 //---------------------------------------------------
 // SERVER INTERNAL FUNCTIONS
 
+int create_sem_set(key_t semkey) {
+    // Create a semaphore set with 10 semaphores
+	semid = createSemaphores(SEM_KEY, 10);
+	unsigned short semValues[] = { 1, 1, 0, 0, 0, 0, 1, IPC_MAX_MSG, IPC_MAX_MSG, IPC_MAX_MSG };
+	semSetAll(semid, semValues);
+
+    return semid;
+}
+
 /**
  * @brief Handler for server termination
  *
@@ -75,6 +84,11 @@ void SignalHandlerTerm(int sig) {
 	if (shmid != -1)
 		remove_shared_memory(shmid);
 
+	// close amd deallocates shared memory check
+	if (shm_check_ptr != NULL)
+		free_shared_memory(shm_check_ptr);
+	if (shm_check_id != -1)
+		remove_shared_memory(shm_check_id);
 
 	// close message queue
 	if (msqid != -1) {
@@ -262,17 +276,15 @@ int main(int argc, char * argv[]) {
 		shm_check_ptr = (int *)attach_shared_memory(shm_check_id, S_IRUSR | S_IWUSR);
 
 	//SemaphoreSet
-	semid = createSemaphores(SEM_KEY, 10);
-	unsigned short semValues[] = { 1, 1, 0, 0, 0, 0, 1, IPC_MAX_MSG, IPC_MAX_MSG, IPC_MAX_MSG };
-	semSetAll(semid, semValues);
+	semid = create_sem_set(SEM_KEY);
 
 	//generate the 2 FIFOs (FIFO1 and FIFO2) and the needed IPCs ( 1 MsqQueue, 1 SharedMemory and a Semaphore set)
 	//FIFO1
 	fd_fifo1 = create_fifo(FIFO1_PATH, 'r'); //Server wants to read
-
+	
 	//FIFO2
-	//fd_fifo2 = create_fifo(FIFO2_PATH, 'r');
-
+	make_fifo(FIFO2_PATH);
+	fd_fifo2 = open(FIFO2_PATH, O_RDONLY | O_NONBLOCK);
 	while (true) {
 
 
@@ -297,6 +309,23 @@ int main(int argc, char * argv[]) {
 		// END SC
 		semOp(semid, SHAREDMEMSEM, 1);
 
+		// Inizializzo la matrice contenente i pezzi di file
+		matrixFile=(msg_t **)malloc(n*sizeof(msg_t *));
+        for(int i=0; i<n;i++)
+            matrixFile[i]=(msg_t *)malloc(4*sizeof(msg_t));
+
+        msg_t empty;
+        empty.mtype = INIT;
+        //inizializzo i valori del percorso per evitare di fare confronti con null
+        for (int i = 0; i < BUFFER_SZ+1; i++){
+			empty.file_path[i] = '\0';
+		}
+        //riempio la matrice con una struttura che mi dice se le celle sono vuote
+        for(int i=0;i<n;i++){
+			for(int j=0; j<4;j++){
+				matrixFile[i][j]=empty;
+			}
+		}
 
 		// Before starting ciclically waiting for messages from the 4 channels
 		// I have to make Fifo non-blocking
