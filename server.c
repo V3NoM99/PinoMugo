@@ -28,10 +28,10 @@ int fd_fifo2 = -1; // FD FIFO2
 int msqid = -1;    // ID MESSAGE QUEUE
 int shmid = -1;    // ID SHARED MEMORY
 int semid = -1;    // ID SEMAPHORES SET
-
+int shm_check_id = -1;
 //Shared memory pointer
 msg_t * shm_ptr = NULL;
-
+int * shm_check_ptr = NULL;
 msg_t **matrixFile = NULL;
 
 //---------------------------------------------------
@@ -254,6 +254,12 @@ int main(int argc, char * argv[]) {
 	//SharedMemory
 	shmid = alloc_shared_memory(SHM_KEY, IPC_MAX_MSG * sizeof(msg_t));
 	shm_ptr = (msg_t *)attach_shared_memory(shmid, IPC_CREAT | S_IRUSR | S_IWUSR);
+	if (shm_check_id == -1)
+		shm_check_id = alloc_shared_memory(SHM_CHECK_KEY, IPC_MAX_MSG * sizeof(int));
+	if (shm_check_id == -1)
+		ErrExit("Error Allocation SHDMEM CHECKID");
+	if (shm_check_ptr == NULL)
+		shm_check_ptr = (int *)attach_shared_memory(shm_check_id, S_IRUSR | S_IWUSR);
 
 	//SemaphoreSet
 	semid = createSemaphores(SEM_KEY, 10);
@@ -347,7 +353,15 @@ int main(int argc, char * argv[]) {
 			printf("[Parte 4, del file %s , spedita dal processo %d tramite ShdMem]%s \n", shm_ptr[0].file_path, shm_ptr[0].sender_pid, shm_ptr[0].msg_body);
 			received_parts++;*/
 			//exit(0);
-
+			semOp(semid, 6, -1);
+			for (int i = 0; i < IPC_MAX_MSG; i++) {
+				if (shm_check_ptr[i] == 1) {
+					shm_check_ptr[i] = 0;
+					printf("[Parte 4, del file %s , spedita dal processo %d tramite ShdMem]%s \n", shm_ptr[i].file_path, shm_ptr[i].sender_pid, shm_ptr[i].msg_body);
+					received_parts++;
+				}
+			}
+			semOp(semid, 6, 1);
 		}
 		//HO RICEVUTO TUTTE LE PARTI, LE DEVO RIUNIRE
 

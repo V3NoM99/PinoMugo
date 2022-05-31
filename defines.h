@@ -42,6 +42,10 @@
 
 #define SEM_KEY_START (key_t)444444
 
+#define SHM_CHECK_KEY (key_t)555555
+
+
+
 #define FIFO1SEM		0
 #define FIFO2SEM		1
 #define MSQSEM 			2

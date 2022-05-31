@@ -8,6 +8,7 @@
 #include <signal.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/msg.h>
 #include <fcntl.h>
 #include <unistd.h>
 #include <string.h>
@@ -20,17 +21,17 @@
 #include "defines.h"
 
 
-int fd_fifo1 = -1;
-int fd_fifo2 = -1;
-int msqid = -1;
-int semid = -1;
-int semidStart = -1;
-int shmid = -1;
+int fd_fifo1 = -1; //fileDescriptor FIFO1
+int fd_fifo2 = -1;//fileDescriptor FIFO2
+int msqid = -1;//id MessageQueue
+int semid = -1;//id Semaforo
+int semidStart = -1;//id Semaforo da togliere
+int shmid = -1;//id SharedMemory
+int shm_check_id = -1;
+msg_t * shm_ptr = NULL;//puntatore SharedMemory
+int * shm_check_ptr = NULL;
 struct dirent *dentry;
 pid_t pid;
-
-//Shared memory pointer
-msg_t * shm_ptr = NULL;
 
 char pathDirectory[250];
 int numOfFiles = 0;
@@ -56,11 +57,13 @@ size_t append2Path(char *directory) {
 	return lastPathEnd;
 }
 
+//controlla se due file iniziano con gli stessi 7 primi caratteri
 int checkFileName(char *filename1, char *filename2) {
 	return (filename1 == NULL || filename2 == NULL) ? 0
 		: strncmp(filename1, filename2, 7) == 0;
 }
 
+//divide un numero per 4 approssimando per eccesso
 int getDimDivFour(int n) {
 	double d = n / 4.0;
 	return ceil(d);
@@ -75,12 +78,46 @@ void sigHandlerTerm(int sig) {
 	}
 }
 
+void InizializeIpc()
+{
+	if(semid==-1)
+		semid = createSemaphores(SEM_KEY, 10);
+	if (semid == -1) 
+		ErrExit("Creation Sempaphore failed");
+	if(fd_fifo1==-1)
+		fd_fifo1 = open(FIFO1_PATH, O_WRONLY);
+	if (fd_fifo1 == -1)
+		ErrExit("Creation FIFO1 failed");
+	/*if (fd_fifo2 == -1)
+		fd_fifo2 = open(FIFO2_PATH, O_WRONLY);
+	if (fd_fifo2 == -1)
+		ErrExit("Creation FIFO2 failed");*/
+	if(msqid ==-1)
+		msqid = msgget(MSQ_KEY, IPC_CREAT | S_IRUSR | S_IWUSR);
+	if (msqid == -1)
+		ErrExit("Creation Msqid Failed");
+	if(shmid==-1)
+		shmid = alloc_shared_memory(SHM_KEY, IPC_MAX_MSG * 1024);
+	if (shmid == -1)
+		ErrExit("Error Allocation SHDMEM");
+	if(shm_ptr==NULL)
+		shm_ptr = (msg_t *)attach_shared_memory(shmid, IPC_CREAT | S_IRUSR | S_IWUSR);
+	if (shm_check_id == -1)
+		shm_check_id = alloc_shared_memory(SHM_CHECK_KEY, IPC_MAX_MSG * sizeof(int));
+	if (shm_check_id == -1)
+		ErrExit("Error Allocation SHDMEM CHECKID");
+	if (shm_check_ptr == NULL)
+		shm_check_ptr = (int *)attach_shared_memory(shm_check_id, S_IRUSR | S_IWUSR);
+	
+
+}
+
 // The signal handler that will be used when the signal SIGINT
 // is delivered to the process
 void sigHandlerStart(int sig) {
 	if (sig == SIGINT) {
 		printf("Inizio Del Programma\n");
-		semid = createSemaphores(SEM_KEY, 2);
+		InizializeIpc();
 		// set of signals (N.B. it is not initialized!)
 		sigset_t mySet;
 		// initialize mySet to contain all signals
@@ -102,14 +139,11 @@ void sigHandlerStart(int sig) {
 			printf("getcwd failed\n");
 			exit(1);
 		}
-
 		printf("Ciao %s, ora inizio l’invio dei file contenuti in %s \n", username, buffer);
-
 
 
 		while ((dentry = readdir(dirp)) != NULL) {
 			size_t lastPath = append2Path(dentry->d_name);
-
 			struct stat statbuf;
 			if (stat(pathDirectory, &statbuf) == -1)
 				ErrExit("errore path");
@@ -123,22 +157,18 @@ void sigHandlerStart(int sig) {
 		semidStart = createSemaphores(SEM_KEY_START, 1);
 		semSetVal(semidStart, 0, 0);
 
-		fd_fifo1 = open(FIFO1_PATH, O_WRONLY);
-		fd_fifo2 = open(FIFO2_PATH, O_WRONLY);
-		msqid = msgget(MSQ_KEY, IPC_CREAT | S_IRUSR | S_IWUSR);
+		
 		// Send number of files through FIFO1
 		char * n_string = int_to_string(numOfFiles);
 		msg_t n_msg = { .mtype = N_FILES,.sender_pid = getpid() };
 		strcpy(n_msg.msg_body, n_string);
 		free(n_string);
-
 		if (write(fd_fifo1, &n_msg, sizeof(n_msg)) == -1) {
 			ErrExit("Write FIFO1 failed");
 		}
 		semOp(semid, FIFO1SEM, 1);//sblocca fifo 1
 		semOp(semid, SHAREDMEMSEM, -1);//blocca ricezione shM
-		shmid = alloc_shared_memory(SHM_KEY, IPC_MAX_MSG * 1024);
-		shm_ptr = (msg_t *)attach_shared_memory(shmid, IPC_CREAT | S_IRUSR | S_IWUSR);
+		
 		if (strcmp(shm_ptr[0].msg_body, "OK") == 0)
 			printf("Messaggio ricevuto\n");
 		else
@@ -150,12 +180,21 @@ void sigHandlerStart(int sig) {
 			printf("non la esiste");
 			exit(0);
 		}
+
+		// rendi fifo non bloccanti
+	/*	semWait(semid, 1);
+		semWaitZero(semid, 1);
+		blockFD(fifo1_fd, 0);
+		blockFD(fifo2_fd, 0);
+		semWait(semid, 2);
+		semWaitZero(semid, 2);*/
+		//
+
 		while ((dentry = readdir(dirp)) != NULL) {
 			struct stat statbuf;
 			if (stat(pathDirectory, &statbuf) == -1)
 				ErrExit("errore path");
 			if (statbuf.st_size <= size && checkFileName(dentry->d_name, "sendme_")) {
-				//printf("qua printo il file %s \n", dentry->d_name);
 				// generate a subprocess
 				pid = fork();
 				if (pid == -1)
@@ -218,8 +257,15 @@ void sigHandlerStart(int sig) {
 
 
 					//invio parte 4 su shdMem
-					shm_ptr[0] = shdmem_msg;
-					semOp(semid, SHAREDMEMSEM, 1);
+					semOp(semid, 6, -1);
+					for (int i = 0; i < IPC_MAX_MSG; i++) {
+						if (shm_check_ptr[i] == 0) {
+							shm_check_ptr[i] = 1;
+							shm_ptr[i] = shdmem_msg;
+							break;
+						}
+					}
+					semOp(semid, 6, 1);
 
 					//invio parte1 su fifo
 					semOp(semid, 7, -1);
