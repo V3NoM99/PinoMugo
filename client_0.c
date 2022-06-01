@@ -80,27 +80,27 @@ void sigHandlerTerm(int sig) {
 
 void InizializeIpc()
 {
-	if(semid==-1)
+	if (semid == -1)
 		semid = createSemaphores(SEM_KEY, 10);
-	if (semid == -1) 
+	if (semid == -1)
 		ErrExit("Creation Sempaphore failed");
-	if(fd_fifo1==-1)
-		fd_fifo1 = open(FIFO1_PATH, O_WRONLY );
+	if (fd_fifo1 == -1)
+		fd_fifo1 = open(FIFO1_PATH, O_WRONLY);
 	if (fd_fifo1 == -1)
 		ErrExit("Creation FIFO1 failed");
 	if (fd_fifo2 == -1)
 		fd_fifo2 = open(FIFO2_PATH, O_WRONLY);
 	if (fd_fifo2 == -1)
 		ErrExit("Creation FIFO2 failed");
-	if(msqid ==-1)
+	if (msqid == -1)
 		msqid = msgget(MSQ_KEY, IPC_CREAT | S_IRUSR | S_IWUSR);
 	if (msqid == -1)
 		ErrExit("Creation Msqid Failed");
-	if(shmid==-1)
+	if (shmid == -1)
 		shmid = alloc_shared_memory(SHM_KEY, IPC_MAX_MSG * 1024);
 	if (shmid == -1)
 		ErrExit("Error Allocation SHDMEM");
-	if(shm_ptr==NULL)
+	if (shm_ptr == NULL)
 		shm_ptr = (msg_t *)attach_shared_memory(shmid, IPC_CREAT | S_IRUSR | S_IWUSR);
 	if (shm_check_id == -1)
 		shm_check_id = alloc_shared_memory(SHM_CHECK_KEY, IPC_MAX_MSG * sizeof(int));
@@ -108,7 +108,7 @@ void InizializeIpc()
 		ErrExit("Error Allocation SHDMEM CHECKID");
 	if (shm_check_ptr == NULL)
 		shm_check_ptr = (int *)attach_shared_memory(shm_check_id, S_IRUSR | S_IWUSR);
-	
+
 
 }
 
@@ -154,10 +154,14 @@ void sigHandlerStart(int sig) {
 
 		}
 		printf("numero files: %d \n", numOfFiles);
+
+		//creo semaforo contenente numero di files
 		semidStart = createSemaphores(SEM_KEY_START, 1);
-		semSetVal(semidStart, 0, 0);
+		semSetVal(semidStart, 0, numOfFiles);
 
 		
+		
+
 		// Send number of files through FIFO1
 		char * n_string = int_to_string(numOfFiles);
 		msg_t n_msg = { .mtype = N_FILES,.sender_pid = getpid() };
@@ -168,7 +172,7 @@ void sigHandlerStart(int sig) {
 		}
 		semOp(semid, FIFO1SEM, 1);//sblocca fifo 1
 		semOp(semid, SHAREDMEMSEM, -1);//blocca ricezione shM
-		
+
 		if (strcmp(shm_ptr[0].msg_body, "OK") == 0)
 			printf("Messaggio ricevuto\n");
 		else
@@ -181,14 +185,7 @@ void sigHandlerStart(int sig) {
 			exit(0);
 		}
 
-		// rendi fifo non bloccanti
-	/*	semWait(semid, 1);
-		semWaitZero(semid, 1);
-		blockFD(fifo1_fd, 0);
-		blockFD(fifo2_fd, 0);
-		semWait(semid, 2);
-		semWaitZero(semid, 2);*/
-		//
+	
 
 		while ((dentry = readdir(dirp)) != NULL) {
 			struct stat statbuf;
@@ -223,7 +220,7 @@ void sigHandlerStart(int sig) {
 					for (i1 = 0; i1 < partOfbR; i1++) {
 						bufferOfFile1[i1] = bufferOfFile[i1];
 					}
-					
+
 					bufferOfFile1[i1] = '\0';
 					msg_t fifo1_msg = { .mtype = 2,.sender_pid = processId };
 					strcpy(fifo1_msg.msg_body, bufferOfFile1);
@@ -239,7 +236,7 @@ void sigHandlerStart(int sig) {
 					//PREPARO BUFFER MsgQueue
 					for (i3 = 0; i3 < partOfbR; i3++) {
 						bufferOfFile3[i3] = bufferOfFile[i3 + i2 + i1];
-					}		
+					}
 					bufferOfFile3[i3] = '\0';
 					msg_t msgQueue_msg = { .mtype = 3,.sender_pid = processId };
 					strcpy(msgQueue_msg.msg_body, bufferOfFile3);
@@ -255,6 +252,29 @@ void sigHandlerStart(int sig) {
 					// close the file descriptor
 					close(file);
 
+					printf("processo %d si blocca su semaforo", getpid());
+					semOp(semidStart, 0, -1);
+					semOp(semidStart, 0, 0);
+					//semwait
+					//invio parte1 su fifo
+					semOp(semid, 7, -1);
+					if (write(fd_fifo1, &fifo1_msg, sizeof(fifo1_msg)) == -1) {
+						ErrExit("Write FIFO1 failed");
+					}
+
+					//invio parte2 su fifo
+					semOp(semid, 8, -1);
+					if (write(fd_fifo2, &fifo2_msg, sizeof(fifo2_msg)) == -1) {
+						ErrExit("Write FIFO2 failed");
+					}
+
+					//semOp(semid, FIFO1SEM, 1);//sblocca fifo 1
+
+					//invio parte 3 su messageQuee
+					semOp(semid, 9, -1);
+					if (msgsnd(msqid, &msgQueue_msg, sizeof(struct msg_t) - sizeof(long), IPC_NOWAIT) == -1) {
+						ErrExit("Write ShdMem failed");
+					}
 
 					//invio parte 4 su shdMem
 					semOp(semid, 6, -1);
@@ -266,19 +286,6 @@ void sigHandlerStart(int sig) {
 						}
 					}
 					semOp(semid, 6, 1);
-
-					//invio parte1 su fifo
-					semOp(semid, 7, -1);
-					if (write(fd_fifo1, &fifo1_msg, sizeof(fifo1_msg)) == -1) {
-						ErrExit("Write FIFO1 failed");
-					}
-					//semOp(semid, FIFO1SEM, 1);//sblocca fifo 1
-
-					//invio parte 3 su messageQuee
-					semOp(semid, 9, -1);
-					if (msgsnd(msqid, &msgQueue_msg, sizeof(struct msg_t) - sizeof(long), IPC_NOWAIT) == -1) {
-						ErrExit("Write ShdMem failed");
-					}
 
 
 					printf("prima parte file: %s \n", bufferOfFile1);
@@ -300,7 +307,8 @@ void sigHandlerStart(int sig) {
 		if (pid != 0) {
 			printf("PArent PID: %d , NOnno PID: %d.\n",
 				getpid(), getppid());
-			semOp(semidStart, FIFO1SEM, numOfFiles);
+			
+			
 
 		}
 
