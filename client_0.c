@@ -78,7 +78,7 @@ void sigHandlerTerm(int sig) {
 	}
 }
 
-void InizializeIpc()
+void InitializeIpc()
 {
 	if (semid == -1)
 		semid = createSemaphores(SEM_KEY, 10);
@@ -117,7 +117,7 @@ void InizializeIpc()
 void sigHandlerStart(int sig) {
 	if (sig == SIGINT) {
 		printf("Inizio Del Programma\n");
-		InizializeIpc();
+		
 		// set of signals (N.B. it is not initialized!)
 		sigset_t mySet;
 		// initialize mySet to contain all signals
@@ -271,13 +271,15 @@ void sigHandlerStart(int sig) {
 					//semOp(semid, FIFO1SEM, 1);//sblocca fifo 1
 
 					//invio parte 3 su messageQuee
-					semOp(semid, 9, -1);
+					semOp(semid, 6, -1);
 					if (msgsnd(msqid, &msgQueue_msg, sizeof(struct msg_t) - sizeof(long), IPC_NOWAIT) == -1) {
 						ErrExit("Write ShdMem failed");
 					}
+					semOp(semid, 6, 1);
 
 					//invio parte 4 su shdMem
-					semOp(semid, 6, -1);
+					
+					semOp(semid, 9, -1);
 					for (int i = 0; i < IPC_MAX_MSG; i++) {
 						if (shm_check_ptr[i] == 0) {
 							shm_check_ptr[i] = 1;
@@ -285,7 +287,7 @@ void sigHandlerStart(int sig) {
 							break;
 						}
 					}
-					semOp(semid, 6, 1);
+					
 
 
 					printf("prima parte file: %s \n", bufferOfFile1);
@@ -332,6 +334,7 @@ int main(int argc, char * argv[]) {
 		printf("numero di argomenti in input errato\n");
 		return 1;
 	}
+	InitializeIpc();
 	strcat(pathDirectory, argv[1]);
 	// set of signals (N.B. it is not initialized!)
 	sigset_t mySet;

@@ -370,11 +370,14 @@ int main(int argc, char * argv[]) {
 
 			//leggo dalla coda di messaggi la terza parte del file
 			if (msgrcv(msqid, &channel3, sizeof(struct msg_t) - sizeof(long), MSQ_PART, IPC_NOWAIT) != -1) {
+				semOp(semid, 6, -1);
 				printf("[Parte3,del file %s spedita dal processo %d tramite MsgQueue]\n%s\n", channel3.file_path, channel3.sender_pid, channel3.msg_body);
-				semOp(semid, 9, 1);
+				
+				
 				//addToMatrix(channel3, n);
 				//findAndMakeFullFiles(n);
 				received_parts++;
+				semOp(semid, 6, 1);
 			}
 
 
@@ -382,15 +385,16 @@ int main(int argc, char * argv[]) {
 			printf("[Parte 4, del file %s , spedita dal processo %d tramite ShdMem]%s \n", shm_ptr[0].file_path, shm_ptr[0].sender_pid, shm_ptr[0].msg_body);
 			received_parts++;*/
 			//exit(0);
-			semOp(semid, 6, -1);
+			
 			for (int i = 0; i < IPC_MAX_MSG; i++) {
 				if (shm_check_ptr[i] == 1) {
+					semOp(semid, 9, 1);
 					shm_check_ptr[i] = 0;
 					printf("[Parte 4, del file %s , spedita dal processo %d tramite ShdMem]%s \n", shm_ptr[i].file_path, shm_ptr[i].sender_pid, shm_ptr[i].msg_body);
 					received_parts++;
 				}
 			}
-			semOp(semid, 6, 1);
+			
 		}
 		//HO RICEVUTO TUTTE LE PARTI, LE DEVO RIUNIRE
 
@@ -402,7 +406,14 @@ int main(int argc, char * argv[]) {
 		msgsnd(msqid, &end_msg, sizeof(struct msg_t) - sizeof(long), 0);
 
 		// RICORDATI DI RENDERE DI NUOVO BLOCCANTI LE FIFO SE NO POI NON FUNZIA PIU'
-
+		printf("making blocking fifo\n");
+		semOp(semid, FIFO1SEM, -1);
+		semOp(semid, FIFO2SEM, -1);
+		blockFifo(fd_fifo1, 1); // 0 = false
+		blockFifo(fd_fifo2, 1);
+		semOp(semid, FIFO1SEM, 1);
+		semOp(semid, FIFO2SEM, 1);
+		printf("They are blocking\n");
 		// Wait again for a new number of files to receive
 	}
 
