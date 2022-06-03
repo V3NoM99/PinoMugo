@@ -279,12 +279,13 @@ int main(int argc, char * argv[]) {
 	semid = create_sem_set(SEM_KEY);
 
 	//generate the 2 FIFOs (FIFO1 and FIFO2) and the needed IPCs ( 1 MsqQueue, 1 SharedMemory and a Semaphore set)
-	//FIFO1
-	fd_fifo1 = create_fifo(FIFO1_PATH, 'r'); //Server wants to read
-	
 	//FIFO2
 	make_fifo(FIFO2_PATH);
 	fd_fifo2 = open(FIFO2_PATH, O_RDONLY | O_NONBLOCK);
+	//FIFO1
+	fd_fifo1 = create_fifo(FIFO1_PATH, 'r'); //Server wants to read
+	
+	
 	while (true) {
 
 
