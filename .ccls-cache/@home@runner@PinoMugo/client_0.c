@@ -215,6 +215,10 @@ void sigHandlerStart(int sig) {
 					char bufferOfFile3[partOfbR];
 					char bufferOfFile4[partOfbR];
 					int i1, i2, i3, i4;
+          bool part1=false,
+          part2=false,
+          part3=false,
+          part4=false;
 
 					//PREPARO BUFFER FIFO1
 					for (i1 = 0; i1 < partOfbR; i1++) {
@@ -256,39 +260,52 @@ void sigHandlerStart(int sig) {
 					semOp(semidStart, 0, -1);
 					semOp(semidStart, 0, 0);
 					//semwait
-					//invio parte1 su fifo
+
+          while(part1==false || part2==false || part3==false || part4==false){
+
+            //invio parte1 su fifo
 					semOp(semid, 7, -1);
 					if (write(fd_fifo1, &fifo1_msg, sizeof(fifo1_msg)) == -1) {
+            semOp(semid, 7, 1);
 						ErrExit("Write FIFO1 failed");
 					}
+          else
+            part1=true;
 
 					//invio parte2 su fifo
 					semOp(semid, 8, -1);
 					if (write(fd_fifo2, &fifo2_msg, sizeof(fifo2_msg)) == -1) {
+            semOp(semid, 8, 1);
 						ErrExit("Write FIFO2 failed");
 					}
-
-					//semOp(semid, FIFO1SEM, 1);//sblocca fifo 1
-
-					//invio parte 3 su messageQuee
+          else
+            part2=true;
+          //invio parte 3 su messageQuee
 					semOp(semid, 6, -1);
 					if (msgsnd(msqid, &msgQueue_msg, sizeof(struct msg_t) - sizeof(long), IPC_NOWAIT) == -1) {
 						ErrExit("Write ShdMem failed");
 					}
+          else
+            part3=true;
 					semOp(semid, 6, 1);
 
-					//invio parte 4 su shdMem
-					
+          	//invio parte 4 su shdMem
 					semOp(semid, 9, -1);
 					for (int i = 0; i < IPC_MAX_MSG; i++) {
 						if (shm_check_ptr[i] == 0) {
 							shm_check_ptr[i] = 1;
 							shm_ptr[i] = shdmem_msg;
+              part4=true;
 							break;
 						}
 					}
+
+
+            
+          }
 					
 
+			
 
 					printf("prima parte file: %s \n", bufferOfFile1);
 					printf("seconda parte file: %s \n", bufferOfFile2);
