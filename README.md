@@ -2,8 +2,9 @@
 
 TODO
 
-- Gestione eventualità che il client inizi prima del server
-
-- Prof parla nel FAQ di gestire i file come .txt
+- Gestione eventualità che il client inizi prima del server?
 
 - gestire fino a 100 file sendme
+
+- gestire eventualità zero files?
+
