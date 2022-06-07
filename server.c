@@ -13,6 +13,7 @@
 #include <sys/msg.h>
 #include <sys/types.h>
 #include <fcntl.h>
+#include <math.h>
 
 
 #include "err_exit.h"
@@ -40,12 +41,16 @@ msg_t **matrixFile = NULL;
 int create_sem_set(key_t semkey) {
     // Create a semaphore set with 10 semaphores
 	semid = createSemaphores(SEM_KEY, 10);
-	unsigned short semValues[] = { 1, 1, 0, 0, 0, 0, 1, IPC_MAX_MSG, IPC_MAX_MSG, IPC_MAX_MSG };
+	unsigned short semValues[] = { 1, 1, 1, 0, 0, 0, 1, IPC_MAX_MSG, IPC_MAX_MSG, IPC_MAX_MSG };
 	semSetAll(semid, semValues);
 
     return semid;
 }
 
+int getDimDivFour(int n) {
+	double d = n / 4.0;
+	return ceil(d);
+}
 /**
  * @brief Handler for server termination
  *
@@ -310,24 +315,6 @@ int main(int argc, char * argv[]) {
 		// END SC
 		semOp(semid, SHAREDMEMSEM, 1);
 
-		// Inizializzo la matrice contenente i pezzi di file
-		matrixFile=(msg_t **)malloc(n*sizeof(msg_t *));
-        for(int i=0; i<n;i++)
-            matrixFile[i]=(msg_t *)malloc(4*sizeof(msg_t));
-
-        msg_t empty;
-        empty.mtype = INIT;
-        //inizializzo i valori del percorso per evitare di fare confronti con null
-        for (int i = 0; i < BUFFER_SZ+1; i++){
-			empty.file_path[i] = '\0';
-		}
-        //riempio la matrice con una struttura che mi dice se le celle sono vuote
-        for(int i=0;i<n;i++){
-			for(int j=0; j<4;j++){
-				matrixFile[i][j]=empty;
-			}
-		}
-
 		// Before starting ciclically waiting for messages from the 4 channels
 		// I have to make Fifo non-blocking
 		printf("making Non blocking fifo\n");
@@ -344,60 +331,109 @@ int main(int argc, char * argv[]) {
 		// Ciclically waiting for messages
 		int total_number_parts = n * 4; // total number of parts I have to receive
 		int received_parts = 0;
-
+		char* path="_out";
 
 		while (received_parts < total_number_parts) {
 
 			// Save sender PID, message body of the message part, and file path
 			msg_t channel1, channel2, channel3;
 
-			//leggo da fifo1 la prima parte del file
+			//LEGGO DA FIFO 1 la prima parte del file
+			semOp(semid, 2, -1);
 			if (read(fd_fifo1, &channel1, sizeof(channel1)) != -1) {
-				printf("[Parte1, del file %s spedita dal processo %d tramite FIFO1]\n%s\n", channel1.file_path, channel1.sender_pid, channel1.msg_body);
-				semOp(semid, 7, 1);
-				//addToMatrix(channel1, n);
-				//findAndMakeFullFiles(n);
-				received_parts++;
+        	char* outputOnFile1=malloc(2000);
+        	char* completepath1=malloc(259);
+        	int l1;
+        	sprintf(outputOnFile1,"[Parte1, del file %s spedita dal processo %d tramite FIFO1]\n%s\n", channel1.file_path, channel1.sender_pid, channel1.msg_body);
+        	l1=strlen(outputOnFile1);
+        	completepath1=channel1.file_path;
+        	printf("%s\n",outputOnFile1);
+        	strcat(completepath1,path);
+        	int fileD =open(completepath1,O_CREAT | O_WRONLY, S_IWUSR | S_IRUSR);
+         	// movet the current offset to the bottom of destination file
+        	if (fileD != -1 && lseek(fileD, 0, SEEK_SET) == -1)
+            	ErrExit("lssek failed");
+          	if( write(fileD,outputOnFile1,l1)!=l1)
+            	ErrExit("Errore Scrittura File");
+			received_parts++; 
+        	close(fileD);
+			semOp(semid, 7, 1);			   
 			}
-
-			//leggo da fifo2 la seconda parte del file
+			semOp(semid, 2, 1);
+			//LEGGO DA FIFO 2 la seconda parte del file
+			semOp(semid, 2, -1);
 			if (read(fd_fifo2, &channel2, sizeof(channel2)) != -1) {
-				printf("[Parte2,del file %s spedita dal processo %d tramite FIFO2]\n%s\n", channel2.file_path, channel2.sender_pid, channel2.msg_body);
-				semOp(semid, 8, 1);
-				//addToMatrix(channel2, n);
-				//findAndMakeFullFiles(n);
-				received_parts++;
+        	char* outputOnFile2=malloc(2000);
+        	char* completepath2=malloc(259);
+        	int l2;
+			sprintf(outputOnFile2,"\n[Parte2,del file %s spedita dal processo %d tramite FIFO2]\n%s\n", channel2.file_path, channel2.sender_pid, channel2.msg_body);
+        	l2=strlen(outputOnFile2);
+        	completepath2=channel2.file_path;
+        	strcat(completepath2,path);
+        	int fileD =open(completepath2,O_CREAT | O_WRONLY, S_IWUSR | S_IRUSR);
+        	// movet the current offset to the bottom of destination file
+        	if (fileD != -1 && lseek(fileD, l2, SEEK_SET) == -1)
+            	ErrExit("lssek failed");
+          	if( write(fileD,outputOnFile2,l2)!=l2)
+            	ErrExit("Errore Scrittura File");
+			received_parts++;
+        	close(fileD);
+			semOp(semid, 8, 1);				
 			}
+			semOp(semid, 2, 1);
 
-			//leggo dalla coda di messaggi la terza parte del file
+			//LEGGO DA CODA DI MESSAGGI la terza parte del file
+			semOp(semid, 2, -1);
 			if (msgrcv(msqid, &channel3, sizeof(struct msg_t) - sizeof(long), MSQ_PART, IPC_NOWAIT) != -1) {
-				semOp(semid, 6, -1);
-				printf("[Parte3,del file %s spedita dal processo %d tramite MsgQueue]\n%s\n", channel3.file_path, channel3.sender_pid, channel3.msg_body);
-				
-				
-				//addToMatrix(channel3, n);
-				//findAndMakeFullFiles(n);
+         		char* outputOnFile3=malloc(2000);
+        		char* completepath3=malloc(259);
+        		int l3;
+				sprintf(outputOnFile3,"\n[Parte3,del file %s spedita dal processo %d tramite MsgQueue]\n%s\n", channel3.file_path, channel3.sender_pid, channel3.msg_body);
+        		l3=strlen(outputOnFile3);
+        		completepath3=channel3.file_path;
+				strcat(completepath3,path);
+        		int fileD =open(completepath3,O_CREAT | O_WRONLY, S_IWUSR | S_IRUSR);
+        		// movet the current offset to the bottom of destination file
+        		if (fileD != -1 && lseek(fileD, (l3*2)-6, SEEK_SET) == -1)
+            		ErrExit("lssek failed");
+          		if( write(fileD,outputOnFile3,l3)!=l3)
+            		ErrExit("Errore Scrittura File");
 				received_parts++;
-				semOp(semid, 6, 1);
+        		close(fileD);
+				semOp(semid, 9, 1);
 			}
-
-
-		/*	semOp(semid, SHAREDMEMSEM, -1);
-			printf("[Parte 4, del file %s , spedita dal processo %d tramite ShdMem]%s \n", shm_ptr[0].file_path, shm_ptr[0].sender_pid, shm_ptr[0].msg_body);
-			received_parts++;*/
-			//exit(0);
-			
+			semOp(semid, 2, 1);
+			//LEGGO DA SHDMEM
+			semOp(semid, 2, -1);
+			semOp(semid, 6, -1);
 			for (int i = 0; i < IPC_MAX_MSG; i++) {
 				if (shm_check_ptr[i] == 1) {
-					semOp(semid, 9, 1);
+					char* outputOnFile4=malloc(2000);
+        			char* completepath4=malloc(259);
+        			int l4;
 					shm_check_ptr[i] = 0;
-					printf("[Parte 4, del file %s , spedita dal processo %d tramite ShdMem]%s \n", shm_ptr[i].file_path, shm_ptr[i].sender_pid, shm_ptr[i].msg_body);
+					sprintf(outputOnFile4,"\n[Parte 4, del file %s , spedita dal processo %d tramite ShdMem]\n%s\n", shm_ptr[i].file_path, shm_ptr[i].sender_pid, shm_ptr[i].msg_body);
+					l4=strlen(outputOnFile4);
+        			completepath4=shm_ptr[i].file_path;
+					strcat(completepath4,path);
+        			int fileD =open(completepath4,O_CREAT | O_WRONLY, S_IWUSR | S_IRUSR);
+        			// movet the current offset to the bottom of destination file
+        			if (fileD != -1 && lseek(fileD,(l4*3)-12, SEEK_SET) == -1)
+            			ErrExit("lssek failed");
+          			if( write(fileD,outputOnFile4,l4)!=l4)
+            			ErrExit("Errore Scrittura File");
 					received_parts++;
+        			close(fileD);
+					
 				}
 			}
+			semOp(semid, 6, 1);
+			semOp(semid, 2, 1);
+
 			
 		}
 		//HO RICEVUTO TUTTE LE PARTI, LE DEVO RIUNIRE
+		printf("HO RICEVUTO TUTTO");
 
 
 
