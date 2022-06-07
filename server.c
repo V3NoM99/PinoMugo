@@ -32,7 +32,6 @@ int shm_check_id = -1;
 // Shared memory pointer
 msg_t *shm_ptr = NULL;
 int *shm_check_ptr = NULL;
-msg_t **matrixFile = NULL;
 
 //---------------------------------------------------
 // SERVER INTERNAL FUNCTIONS
