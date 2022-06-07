@@ -176,8 +176,12 @@ void sigHandlerStart(int sig)
 		semOp(semid, FIFO1SEM, 1);		// sblocca fifo 1
 		semOp(semid, SHAREDMEMSEM, -1); // blocca ricezione shM
 
-		if (strcmp(shm_ptr[0].msg_body, "OK") == 0)
+		if (strcmp(shm_ptr[0].msg_body, "OK") == 0){
 			printf("Messaggio ricevuto\n");
+			shm_check_ptr[0]=0; 
+
+		}
+			
 		else
 			printf("messaggio sbagliato");
 
@@ -324,7 +328,7 @@ void sigHandlerStart(int sig)
 						// invio parte 4 su shdMem
 						if (part4 == false)
 						{
-							semOp(semid, 6, -1);
+							if(semOpNoWait(semid, 6, -1)==0){
 							for (int i = 0; i < IPC_MAX_MSG; i++)
 							{
 								if (shm_check_ptr[i] == 0)
@@ -336,6 +340,7 @@ void sigHandlerStart(int sig)
 								}
 							}
 							semOp(semid, 6, 1);
+							}
 						}
 					}
 
