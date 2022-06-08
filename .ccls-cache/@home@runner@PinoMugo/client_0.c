@@ -29,12 +29,11 @@ int shmid = -1;		 // id SharedMemory
 int shm_check_id = -1;
 msg_t *shm_ptr = NULL; // puntatore SharedMemory
 int *shm_check_ptr = NULL;
-
-
+struct dirent *dentry;
 pid_t pid;
-int numOfFiles;
 
 char pathDirectory[250];
+int numOfFiles = 0;
 off_t size = 4096;
 
 char *toArray(int number)
@@ -114,25 +113,88 @@ void InitializeIpc()
 		shm_check_ptr = (int *)attach_shared_memory(shm_check_id, S_IRUSR | S_IWUSR);
 }
 
-void searchAndGenerateFigli()
+// The signal handler that will be used when the signal SIGINT
+// is delivered to the process
+void sigHandlerStart(int sig)
 {
-	DIR *dirp = opendir(pathDirectory);
-	if (dirp == NULL)
+	if (sig == SIGINT)
 	{
-		printf("directory inesistente");
-		exit(0);
-	}
-	struct dirent *dentry;
-	while ((dentry = readdir(dirp)) != NULL)
-	{
-		if (strcmp(dentry->d_name, ".") == 0 ||
-			strcmp(dentry->d_name, "..") == 0)
+		printf("Inizio Del Programma\n");
+
+		// set of signals (N.B. it is not initialized!)
+		sigset_t mySet;
+		// initialize mySet to contain all signals
+		sigfillset(&mySet);
+		// blocking all signals
+		sigprocmask(SIG_SETMASK, &mySet, NULL);
+		// open the Directory
+		DIR *dirp = opendir(pathDirectory);
+		if (dirp == NULL)
 		{
-			continue;
+			printf("non la esiste");
+			exit(0);
 		}
-		if (dentry->d_type == DT_REG)
+		char *username = getenv("USER");
+		if (username == NULL)
+			username = "unknown";
+
+		char buffer[BUFFER_SZ];
+		if (getcwd(buffer, sizeof(buffer)) == NULL)
+		{
+			printf("getcwd failed\n");
+			exit(1);
+		}
+		printf("Ciao %s, ora inizio l’invio dei file contenuti in %s \n", username, buffer);
+
+		while ((dentry = readdir(dirp)) != NULL)
 		{
 			size_t lastPath = append2Path(dentry->d_name);
+			struct stat statbuf;
+			if (stat(pathDirectory, &statbuf) == -1)
+				ErrExit("errore path");
+			if (statbuf.st_size <= size && checkFileName(dentry->d_name, "sendme_"))
+			{
+				numOfFiles++;
+			}
+			pathDirectory[lastPath] = '\0';
+		}
+		printf("numero files: %d \n", numOfFiles);
+
+		// creo semaforo contenente numero di files
+		semidStart = createSemaphores(SEM_KEY_START, 1);
+		semSetVal(semidStart, 0, numOfFiles);
+
+		// Send number of files through FIFO1
+		char *n_string = int_to_string(numOfFiles);
+		msg_t n_msg = {.mtype = N_FILES, .sender_pid = getpid()};
+		strcpy(n_msg.msg_body, n_string);
+		free(n_string);
+		if (write(fd_fifo1, &n_msg, sizeof(n_msg)) == -1)
+		{
+			ErrExit("Write FIFO1 failed");
+		}
+		semOp(semid, FIFO1SEM, 1);		// sblocca fifo 1
+		semOp(semid, SHAREDMEMSEM, -1); // blocca ricezione shM
+
+		if (strcmp(shm_ptr[0].msg_body, "OK") == 0){
+			printf("Messaggio ricevuto\n");
+			shm_check_ptr[0]=0; 
+
+		}
+			
+		else
+			printf("messaggio sbagliato");
+
+		closedir(dirp);
+		dirp = opendir(pathDirectory);
+		if (dirp == NULL)
+		{
+			printf("non la esiste");
+			exit(0);
+		}
+
+		while ((dentry = readdir(dirp)) != NULL)
+		{
 			struct stat statbuf;
 			if (stat(pathDirectory, &statbuf) == -1)
 				ErrExit("errore path");
@@ -145,17 +207,18 @@ void searchAndGenerateFigli()
 				else if (pid == 0)
 				{
 					int processId = getpid();
-					//append2Path(dentry->d_name);
-					printf("\n%s\n",pathDirectory);
+					printf("PID: %d , PPID: %d.\n",
+						   getpid(), getppid());
+					append2Path(dentry->d_name);
+
 					int file = open(pathDirectory, O_RDONLY);
 					if (file == -1)
 					{
 						printf("File does not exist\n");
 					}
 					ssize_t bR = 0;
-					char bufferOfFile[statbuf.st_size ];
+					char bufferOfFile[statbuf.st_size + 1];
 					bR = read(file, bufferOfFile, statbuf.st_size);
-					bufferOfFile[statbuf.st_size]='\0';
 					int partOfbR = getDimDivFour(bR);
 					char bufferOfFile1[partOfbR];
 					char bufferOfFile2[partOfbR];
@@ -175,6 +238,7 @@ void searchAndGenerateFigli()
 						else
 							bufferOfFile1[i1] = ' ';
 					}
+
 					bufferOfFile1[i1] = '\0';
 					msg_t fifo1_msg = {.mtype = 2, .sender_pid = processId};
 					strcpy(fifo1_msg.msg_body, bufferOfFile1);
@@ -217,8 +281,10 @@ void searchAndGenerateFigli()
 					strcpy(shdmem_msg.file_path, pathDirectory);
 					// close the file descriptor
 					close(file);
-					semOp(semid, 5, -1);
-					semOp(semid, 5, 0);
+
+					printf("processo %d si blocca su semaforo", getpid());
+					semOp(semidStart, 0, -1);
+					semOp(semidStart, 0, 0);
 					// semwait
 
 					while (part1 == false || part2 == false || part3 == false || part4 == false)
@@ -262,146 +328,40 @@ void searchAndGenerateFigli()
 						// invio parte 4 su shdMem
 						if (part4 == false)
 						{
-							if (semOpNoWait(semid, 6, -1) == 0)
+							if(semOpNoWait(semid, 6, -1)==0){
+							for (int i = 0; i < IPC_MAX_MSG; i++)
 							{
-								for (int i = 0; i < IPC_MAX_MSG; i++)
+								if (shm_check_ptr[i] == 0)
 								{
-									if (shm_check_ptr[i] == 0)
-									{
-										shm_check_ptr[i] = 1;
-										shm_ptr[i] = shdmem_msg;
-										part4 = true;
-										break;
-									}
+									shm_check_ptr[i] = 1;
+									shm_ptr[i] = shdmem_msg;
+									part4 = true;
+									break;
 								}
-								semOp(semid, 6, 1);
+							}
+							semOp(semid, 6, 1);
 							}
 						}
 					}
+
+					printf("prima parte file: %s \n", bufferOfFile1);
+					printf("seconda parte file: %s \n", bufferOfFile2);
+					printf("terza parte file: %s \n", bufferOfFile3);
+					printf("quarta parte file: %s \n", bufferOfFile4);
 					exit(0);
 				}
 
 				// il padre sblocca il semaforo in modo che i figli inviino
 			}
-
-			pathDirectory[lastPath] = '\0';
 		}
-		else if (dentry->d_type == DT_DIR)
-		{
-			size_t lastPath = append2Path(dentry->d_name);
-			searchAndGenerateFigli();
-			pathDirectory[lastPath] = '\0';
-		}
-	}
-}
-
-void search()
-{
-	// open the Directory
-	DIR *dirp = opendir(pathDirectory);
-	if (dirp == NULL)
-	{
-		printf("non la esiste");
-		exit(0);
-	}
-	struct dirent *dentry;
-	while ((dentry = readdir(dirp)) != NULL)
-	{
-		if (strcmp(dentry->d_name, ".") == 0 ||
-			strcmp(dentry->d_name, "..") == 0)
-		{
-			continue;
-		}
-		if (dentry->d_type == DT_REG)
-		{
-
-			size_t lastPath = append2Path(dentry->d_name);
-			struct stat statbuf;
-
-			if (stat(pathDirectory, &statbuf) == -1)
-				ErrExit("errore path");
-			if (statbuf.st_size <= size && checkFileName(dentry->d_name, "sendme_"))
-			{
-				numOfFiles++;
-			}
-			pathDirectory[lastPath] = '\0';
-			printf("\n%s\n", pathDirectory);
-		}
-		else if (dentry->d_type == DT_DIR)
-		{
-			size_t lastPath = append2Path(dentry->d_name);
-			search();
-			pathDirectory[lastPath] = '\0';
-			printf("\ncartella %s\n", pathDirectory);
-		}
-	}
-	closedir(dirp);
-}
-// The signal handler that will be used when the signal SIGINT
-// is delivered to the process
-void sigHandlerStart(int sig)
-{
-	if (sig == SIGINT)
-	{
-		printf("Inizio Del Programma\n");
-		numOfFiles = 0;
-		// set of signals (N.B. it is not initialized!)
-		sigset_t mySet;
-		// initialize mySet to contain all signals
-		sigfillset(&mySet);
-		// blocking all signals
-		sigprocmask(SIG_SETMASK, &mySet, NULL);
-
-		char *username = getenv("USER");
-		if (username == NULL)
-			username = "unknown";
-
-		char buffer[BUFFER_SZ];
-		if (getcwd(buffer, sizeof(buffer)) == NULL)
-		{
-			printf("getcwd failed\n");
-			exit(1);
-		}
-		printf("Ciao %s, ora inizio l’invio dei file contenuti in %s \n", username, buffer);
-		search();
-
-		// creo semaforo contenente numero di files
-		semSetVal(semid, 5, numOfFiles);
-
-		// Send number of files through FIFO1
-		char *n_string = int_to_string(numOfFiles);
-		msg_t n_msg = {.mtype = N_FILES, .sender_pid = getpid()};
-		strcpy(n_msg.msg_body, n_string);
-		free(n_string);
-		if (write(fd_fifo1, &n_msg, sizeof(n_msg)) == -1)
-		{
-			ErrExit("Write FIFO1 failed");
-		}
-		semOp(semid, FIFO1SEM, 1);		// sblocca fifo 1
-		semOp(semid, SHAREDMEMSEM, -1); // blocca ricezione shM
-
-		if (strcmp(shm_ptr[0].msg_body, "OK") == 0)
-		{
-			// printf("Messaggio ricevuto\n");
-			shm_check_ptr[0] = 0;
-		}
-		
-
-		searchAndGenerateFigli();
 
 		if (pid != 0)
 		{
 			printf("PArent PID: %d , NOnno PID: %d.\n",
 				   getpid(), getppid());
-			semOp(semid, 4, -1);
-			msg_t term;
-			if (msgrcv(msqid, &term, sizeof(struct msg_t) - sizeof(long), FINISHED, 0) != -1)
-			{
-				printf("\n qua sbloccherò i segnali");
-				sigfillset(&mySet);
-				sigprocmask(SIG_SETMASK, &mySet, NULL);
-			}
 		}
+
+		exit(0);
 	}
 }
 

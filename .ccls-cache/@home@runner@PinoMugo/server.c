@@ -32,7 +32,6 @@ int shm_check_id = -1;
 // Shared memory pointer
 msg_t *shm_ptr = NULL;
 int *shm_check_ptr = NULL;
-msg_t **matrixFile = NULL;
 
 //---------------------------------------------------
 // SERVER INTERNAL FUNCTIONS
@@ -217,6 +216,7 @@ int main(int argc, char *argv[])
 					sprintf(outputOnFile1, "[Parte1, del file %s spedita dal processo %d tramite FIFO1]\n%s\n", channel1.file_path, channel1.sender_pid, channel1.msg_body);
 					l1 = strlen(outputOnFile1);
 					completepath1 = channel1.file_path;
+					printf("%s\n", outputOnFile1);
 					strcat(completepath1, path);
 					int fileD = open(completepath1, O_CREAT | O_WRONLY, S_IWUSR | S_IRUSR);
 					// movet the current offset to the bottom of destination file
@@ -230,7 +230,6 @@ int main(int argc, char *argv[])
 				}
 				semOp(semid, 2, 1);
 			}
-			
 			// LEGGO DA FIFO 2 la seconda parte del file
 			if (semOpNoWait(semid, 2, -1) == 0)
 			{
@@ -280,7 +279,6 @@ int main(int argc, char *argv[])
 				}
 				semOp(semid, 2, 1);
 			}
-			
 			// LEGGO DA SHDMEM
 			if (semOpNoWait(semid, 2, -1) == 0)
 			{
@@ -316,6 +314,10 @@ int main(int argc, char *argv[])
 		// HO RICEVUTO TUTTE LE PARTI, LE DEVO RIUNIRE
 		printf("\nHO RICEVUTO TUTTO\n");
 
+		// sending message to client: I've ended my work
+		msg_t end_msg = {.msg_body = "FINISHED", .mtype = FINISHED, .sender_pid = getpid()};
+		msgsnd(msqid, &end_msg, sizeof(struct msg_t) - sizeof(long), 0);
+
 		// RICORDATI DI RENDERE DI NUOVO BLOCCANTI LE FIFO SE NO POI NON FUNZIA PIU'
 		printf("making blocking fifo\n");
 		semOp(semid, FIFO1SEM, -1);
@@ -326,11 +328,6 @@ int main(int argc, char *argv[])
 		semOp(semid, FIFO2SEM, 1);
 		printf("They are blocking\n");
 		// Wait again for a new number of files to receive
-
-		// sending message to client: I've ended my work
-		msg_t end_msg = {.msg_body = "FINISHED", .mtype = FINISHED, .sender_pid = getpid()};
-		msgsnd(msqid, &end_msg, sizeof(struct msg_t) - sizeof(long), 0);
-		semOp(semid,4,1);
 	}
 
 	return 0;
