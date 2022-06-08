@@ -1,0 +1,22 @@
+[Parte1, del file tmp/sendme_1_out spedita dal processo 727 tramite FIFO1]
+[Parte1, del file tmp/sendme_1 spedita dal processo 574 tramite FIFO1]
+whw
+
+[
+
+[Parte2,del file tmp/sendme_1_out spedita dal processo 727 tramite FIFO2]
+Parte2,del file tmp/sendme_1 spedita dal processo 574 tramite FIFO2]
+hqi
+
+[Pa
+
+[Parte3,del file tmp/sendme_1_out spedita dal processo 727 tramite MsgQueue]
+rte3,del file tmp/sendme_1 spedita dal processo 574 tramite MsgQueue]
+qoe
+
+[P
+
+[Parte 4, del file tmp/sendme_1_out , spedita dal processo 727 tramite ShdMem]
+arte 4, del file tmp/sendme_1 , spedita dal processo 574 tramite ShdMem]
+jro
+

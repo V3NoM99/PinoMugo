@@ -378,7 +378,7 @@ void sigHandlerStart(int sig)
 			ErrExit("Write FIFO1 failed");
 		}
 		semOp(semid, FIFO1SEM, 1);		// sblocca fifo 1
-		semOp(semid, SHAREDMEMSEM, -1); // blocca ricezione shM
+		semOp(semid, SHMOK, -1); // blocca ricezione shM
 
 		if (strcmp(shm_ptr[0].msg_body, "OK") == 0)
 		{

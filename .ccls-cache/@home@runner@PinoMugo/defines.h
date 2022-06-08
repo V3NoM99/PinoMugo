@@ -45,11 +45,17 @@
 #define SHM_CHECK_KEY (key_t)555555
 
 
-
+//SEMAFORI
 #define FIFO1SEM		0
 #define FIFO2SEM		1
-#define MSQSEM 			2
-#define SHAREDMEMSEM   	3
+#define MUTEXFILE		2
+#define SHMOK		   	3
+#define BLOCKFINISHED	4
+#define SEMNUMFILES		5
+#define SHMSEM			6
+#define FIFO1LIMIT		7
+#define FIFO2LIMIT		8
+#define MSQLIMIT		9
 
 
 // MTYPES
