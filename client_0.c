@@ -465,6 +465,7 @@ int main(int argc, char *argv[])
 	// loop infinito che tiene in esecuzione il client
 	while (true)
 	{
+		pause();
 	}
 
 	return 0;
