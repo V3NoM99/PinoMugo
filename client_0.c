@@ -62,49 +62,27 @@ void sigHandlerTerm(int sig)
 	if (sig == SIGUSR1)
 	{
 	// Chiude FIFO1
-  	if (fd_fifo1 != -1) {
-		if (close(fd_fifo1) == -1) {
-      		ErrExit("<CLIENT> close FIFO1 failed");
+	if (close(fd_fifo1) == -1) {
+      	ErrExit("<CLIENT> close FIFO1 failed");
     }
-
-    if (unlink(FIFO1_PATH) == -1) {
-     	 ErrExit("<CLIENT> unlink FIFO1 failed");
-    }
-  	}
+  	
   	// Chiude FIFO2
-	if (fd_fifo2 != -1) {
-	  	if (close(fd_fifo2) == -1) {
-      		ErrExit("<CLIENT> close FIFO2 failed");
-    	}
-		if (unlink(FIFO2_PATH) == -1) {
-			ErrExit("<CLIENT> unlink FIFO2 failed");
-    	}
-  	}
+	if (close(fd_fifo2) == -1) {
+      	ErrExit("<CLIENT> close FIFO2 failed");
+    }
+  	
 
-  	// Chiude set dei semafori
-  	if (semid != -1)
-		semDelete(semid);
-
-  	// chiude  e dealloca la shared memory
+  	// dealloca la shared memory
   	if (shm_ptr != NULL)
     	free_shared_memory(shm_ptr);
-  	if (shmid != -1)
-    	remove_shared_memory(shmid);
 
-  	// chiude e dealloca la shared memory check
+  	// dealloca la shared memory check
   	if (shm_check_ptr != NULL)
     	free_shared_memory(shm_check_ptr);
-  	if (shm_check_id != -1)
-    	remove_shared_memory(shm_check_id);
+  	
 
-  	// chiude la message queue
-  	if (msqid != -1) {
-    	if (msgctl(msqid, IPC_RMID, NULL) == -1) {
-      	ErrExit("<CLIENT> msgctl failed");
-    	}
-  	}
-		printf("Fine Del Programma\n");
-		exit(0);
+	printf("Fine Del Programma\n");
+	exit(0);
 	}
 }
 
@@ -168,7 +146,7 @@ void execSon(struct stat statbuf)
 	// PREPARO BUFFER FIFO1
 	for (i1 = 0; i1 < partOfbR; i1++)
 	{
-		if (bufferOfFile[i1] != 0)
+		if (i1<bR)
 			bufferOfFile1[i1] = bufferOfFile[i1];
 		else
 			bufferOfFile1[i1] = ' ';
@@ -180,7 +158,7 @@ void execSon(struct stat statbuf)
 	// PREPARO BUFFER FIFO2
 	for (i2 = 0; i2 < partOfbR; i2++)
 	{
-		if (bufferOfFile[i2 + i1] != 0)
+		if ((i1+i2)<bR)
 			bufferOfFile2[i2] = bufferOfFile[i2 + i1];
 		else
 			bufferOfFile2[i2] = ' ';
@@ -192,7 +170,7 @@ void execSon(struct stat statbuf)
 	// PREPARO BUFFER MsgQueue
 	for (i3 = 0; i3 < partOfbR; i3++)
 	{
-		if (bufferOfFile[i3 + i2 + i1] != 0)
+		if ((i1+i2+i3)<bR)
 			bufferOfFile3[i3] = bufferOfFile[i3 + i2 + i1];
 		else
 			bufferOfFile3[i3] = ' ';
@@ -204,7 +182,7 @@ void execSon(struct stat statbuf)
 	// PREPARO BUFFER  ShdMem
 	for (i4 = 0; i4 < partOfbR; i4++)
 	{
-		if (bufferOfFile[i4 + i3 + i2 + i1] != 0)
+		if ((i1+i2+i3+i4)<bR)
 			bufferOfFile4[i4] = bufferOfFile[i4 + i3 + i2 + i1];
 		else
 			bufferOfFile4[i4] = ' ';
@@ -453,7 +431,7 @@ void sigHandlerStart(int sig)
 			// CODICE ESEGUITO DAL PADRE CLIENT_0
 			if (pid != 0)
 			{
-
+				printf("\nPID: %d\n", getpid());
 				semOp(semid, BLOCKFINISHED, -1); // BLOCK FINISCHED
 				msg_t term;
 				if (msgrcv(msqid, &term, sizeof(struct msg_t) - sizeof(long), FINISHED, 0) != -1)
