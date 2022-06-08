@@ -20,16 +20,6 @@
     return shmid;
 }
 
- int get_shared_memory(key_t shmKey, size_t size) {
-    // get, or create, a shared memory segment
-    int shmid = shmget(shmKey, size, S_IRUSR | S_IWUSR);
-    if (shmid == -1)
-      ErrExit("Shmget failed!");
-   
-    return shmid;
-}
-
-
 
 void *attach_shared_memory(int shmid, int shmflg) {
   // attach the shared memory

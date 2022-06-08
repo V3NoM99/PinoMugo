@@ -61,6 +61,48 @@ void sigHandlerTerm(int sig)
 {
 	if (sig == SIGUSR1)
 	{
+	// Chiude FIFO1
+  	if (fd_fifo1 != -1) {
+		if (close(fd_fifo1) == -1) {
+      		ErrExit("<CLIENT> close FIFO1 failed");
+    }
+
+    if (unlink(FIFO1_PATH) == -1) {
+     	 ErrExit("<CLIENT> unlink FIFO1 failed");
+    }
+  	}
+  	// Chiude FIFO2
+	if (fd_fifo2 != -1) {
+	  	if (close(fd_fifo2) == -1) {
+      		ErrExit("<CLIENT> close FIFO2 failed");
+    	}
+		if (unlink(FIFO2_PATH) == -1) {
+			ErrExit("<CLIENT> unlink FIFO2 failed");
+    	}
+  	}
+
+  	// Chiude set dei semafori
+  	if (semid != -1)
+		semDelete(semid);
+
+  	// chiude  e dealloca la shared memory
+  	if (shm_ptr != NULL)
+    	free_shared_memory(shm_ptr);
+  	if (shmid != -1)
+    	remove_shared_memory(shmid);
+
+  	// chiude e dealloca la shared memory check
+  	if (shm_check_ptr != NULL)
+    	free_shared_memory(shm_check_ptr);
+  	if (shm_check_id != -1)
+    	remove_shared_memory(shm_check_id);
+
+  	// chiude la message queue
+  	if (msqid != -1) {
+    	if (msgctl(msqid, IPC_RMID, NULL) == -1) {
+      	ErrExit("<CLIENT> msgctl failed");
+    	}
+  	}
 		printf("Fine Del Programma\n");
 		exit(0);
 	}
@@ -291,6 +333,7 @@ void GenerateSons()
 			pathDirectory[lastPath] = '\0';
 		}
 	}
+	closedir(dirp);
 }
 
 // cerca il numero di files regolari

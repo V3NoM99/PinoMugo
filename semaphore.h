@@ -22,13 +22,6 @@ union semun {
 */
 int createSemaphores(key_t key, int n_sem);
 
-/**
- * @brief Restituisce un insieme di semafori gia' creato
- *
- * @param key Chiave IPC
- * @param n_sem Numero semaforo da ottenere
-*/
-int getSemaphores(key_t key, int n_sem);
 
 /**
  * @brief Funzione per modificare i valori di un set di semafori.
@@ -77,12 +70,5 @@ void semSetAll(int semid, short unsigned int values[]);
 void semDelete(int semid);
 
 
-/**
- * @brief Imposta i permessi su un set di semafori.
- *
- * @param semid Identificatore del set di semafori
- * @param arg Contiene i permessi da impostare
-*/
-void semSetPerm(int semid, struct semid_ds arg);
 
 #endif

@@ -21,5 +21,11 @@ void make_fifo(char * path);
  */
 int create_fifo(char * path, char mode);
 
-
+/**
+ * @brief Rende bloccante o non bloccante la FIFO
+ *
+ * @param fd File Descriptor della fifo.
+ * @param blockingFlag 1 blocca 0 sblocca
+ * @return int Descrittore della FIFO
+ */
 int blockFifo(int fd, int blockingFlag);

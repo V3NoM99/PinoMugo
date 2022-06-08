@@ -66,7 +66,6 @@
 #define N_FILES 5
 #define FINISHED 6
 
-#define INIT -1
 
 //---------Messages structure---------
 typedef struct msg_t {

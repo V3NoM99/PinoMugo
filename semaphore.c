@@ -19,14 +19,6 @@ int createSemaphores(key_t key, int n_sem) {
     return semid;
 }
 
-int getSemaphores(key_t key, int n_sem) {
-    int semid = semget(key, n_sem, S_IRUSR | S_IWUSR);
-
-    if (semid == -1)
-        ErrExit("semget failed");
-    return semid;
-}
-
 void semDelete(int semid) {
     if (semctl(semid, 0/*ignored*/, IPC_RMID, 0/*ignored*/) == -1) {
         ErrExit("semctl failed");
@@ -74,9 +66,4 @@ void semSetAll(int semid, short unsigned int values[]) {
     // Inizializza il set di semafori
     if (semctl(semid, 0/*ignored*/, SETALL, arg) == -1)
         ErrExit("semctl SETALL");
-}
-
-void semSetPerm(int semid, struct semid_ds arg) {
-    if (semctl(semid, 0 /*ignored*/, IPC_SET, arg) == -1)
-        ErrExit("semctl IPC_SET failed");
 }
