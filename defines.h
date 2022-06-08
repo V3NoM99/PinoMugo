@@ -81,7 +81,5 @@ typedef struct msg_t {
 } msg_t;
 
 
-
-void print_msg(char * msg);
-
+//converte un intero in una stringa
 char * int_to_string(int value);

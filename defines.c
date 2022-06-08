@@ -19,21 +19,13 @@
 #include "err_exit.h"
 
 
-// USIAMO LA PRINTF O QUESTA ?????
-void print_msg(char * msg){
-    if (write(STDOUT_FILENO, msg, strlen(msg)) == -1){
-        ErrExit("write stdout failed");
-    }
-}
-
 
 char * int_to_string(int value){
     int needed = snprintf(NULL, 0, "%d", value);
 
     char * string = (char *) malloc(needed+1);
     if (string == NULL){
-        print_msg("[client.c:int_to_string] malloc failed\n");
-        exit(1);
+        ErrExit("<CLIENT> malloc failed\n");
     }
 
     snprintf(string, needed+1, "%d", value);

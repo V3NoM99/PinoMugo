@@ -181,21 +181,22 @@ int main(int argc, char *argv[]) {
 		
       	printf("<SERVER> FIFOs are NON BLOCKING\n");
 
-      	// Ciclically waiting for messages
-      	int total_number_parts = n * 4; // total number of parts I have to receive
+      	// Itero ciclicamente consumando i messaggi sui canali
+      	int total_number_parts = n * 4; // Numero totale di parti che devo ricevere
       	int received_parts = 0;
       	char *path = "_out";
 
       	while (received_parts < total_number_parts) {
 
-        	// Save sender PID, message body of the message part, and file path
+        	// Salva il sender PID, message body della parte del messaggio e file path
         	msg_t channel1, channel2, channel3;
 
         	// LEGGO DA FIFO 1 la prima parte del file
-        	if (semOpNoWait(semid, MUTEXFILE, -1) == 0) {
+        	if (semOpNoWait(semid, MUTEXFILE, -1) == 0) {	// MUTEX FILE è il semaforo per accedere al file
+															// in mutua esclusione
           		if (read(fd_fifo1, &channel1, sizeof(channel1)) != -1) {
             		char *outputOnFile1 = malloc(2000);
-            		char *completepath1 = malloc(259);
+            		char *completepath1 = malloc(259); //path = 255 + _out = 4
             		int l1;
             		sprintf(outputOnFile1,
                     "[Parte1, del file %s spedita dal processo %d tramite "
@@ -206,9 +207,9 @@ int main(int argc, char *argv[]) {
             		strcat(completepath1, path);
             		int fileD =
                 			open(completepath1, O_CREAT | O_WRONLY, S_IWUSR | S_IRUSR);
-            		// movet the current offset to the bottom of destination file
+            		// metto il cursore all'inizio del file
             		if (fileD != -1 && lseek(fileD, 0, SEEK_SET) == -1)
-              			ErrExit("lssek failed");
+              			ErrExit("lseek failed");
             		if (write(fileD, outputOnFile1, l1) != l1)
               			ErrExit("Errore Scrittura File");
             		received_parts++;
@@ -233,7 +234,7 @@ int main(int argc, char *argv[]) {
             	strcat(completepath2, path);
             	int fileD =
                 	open(completepath2, O_CREAT | O_WRONLY, S_IWUSR | S_IRUSR);
-            	// movet the current offset to the bottom of destination file
+            	// metto il cursore dopo fifo1 header e messaggio
             	if (fileD != -1 && lseek(fileD, l2, SEEK_SET) == -1)
               		ErrExit("lssek failed");
             	if (write(fileD, outputOnFile2, l2) != l2)
@@ -261,7 +262,7 @@ int main(int argc, char *argv[]) {
             	strcat(completepath3, path);
             	int fileD =
                 	open(completepath3, O_CREAT | O_WRONLY, S_IWUSR | S_IRUSR);
-            	// movet the current offset to the bottom of destination file
+            	// metto il cursore dopo fifo2 header e messaggio
             	if (fileD != -1 && lseek(fileD, (l3 * 2) - 6, SEEK_SET) == -1)
               	ErrExit("lssek failed");
             	if (write(fileD, outputOnFile3, l3) != l3)
@@ -292,7 +293,7 @@ int main(int argc, char *argv[]) {
                 	strcat(completepath4, path);
                 	int fileD =
                     	open(completepath4, O_CREAT | O_WRONLY, S_IWUSR | S_IRUSR);
-                	// movet the current offset to the bottom of destination file
+                	// metto il sursore dopo l'header e il messaggio della coda di messaggi
                 	if (fileD != -1 && lseek(fileD, (l4 * 3) - 12, SEEK_SET) == -1)
                   		ErrExit("lssek failed");
                 	if (write(fileD, outputOnFile4, l4) != l4)
@@ -307,7 +308,7 @@ int main(int argc, char *argv[]) {
         	}
       	}
       	// HO RICEVUTO TUTTE LE PARTI, LE DEVO RIUNIRE
-      	printf("\nHO RICEVUTO TUTTO\n");
+      	printf("\n<SERVER> HO RICEVUTO TUTTO\n");
 
       	// RENDO LE FIFO DI NUOVO BLOCCANTI
       	printf("<SERVER> making FIFOs BLOCKING\n");
@@ -329,8 +330,8 @@ int main(int argc, char *argv[]) {
       	msgsnd(msqid, &end_msg, sizeof(struct msg_t) - sizeof(long), 0);
      	semOp(semid, BLOCKFINISHED, 1);
     	} else {
-      	printf("Il numero dei file nella cartella è uguale a 0\n");
-      	printf("Riempire la cartella con dei file sendme_\n");
+      	printf("<SERVER> Il numero dei file nella cartella è uguale a 0\n");
+      	printf("<SERVER> Riempire la cartella con dei file sendme_\n");
     	}
   	}
 
