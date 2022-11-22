@@ -1,2 +1,2 @@
-# PinoMugo
+# Operating Systems Project
 
